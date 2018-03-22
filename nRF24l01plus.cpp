@@ -4,20 +4,27 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+using namespace Poco;
 //constructor
-nRF24l01plus::nRF24l01plus(QObject *parent,Ether * someEthar):nRF24interface(parent),coalision(false),theEther(someEthar)
+nRF24l01plus::nRF24l01plus(Ether* someEther):nRF24interface(),collision(false),theEther(someEther)
 {
     //ctor
-    theTimer = new QTimer(this);
+    //theTimer = new QTimer(this);
+    /*
     connect(this,SIGNAL(CEsetHIGH()),this,SLOT(CEsetHIGH()));
     connect(this,SIGNAL(TXmodeSet()),this,SLOT(TXmodeSet()));
     connect(this,SIGNAL(PWRUPset()),this,SLOT(PWRUPset()));
     connect(this,SIGNAL(TXpacketAdded()),this,SLOT(TXpacketAdded()));
-    connect(this->theTimer,SIGNAL(timeout()),this,SLOT(noACKalarm()));
+    */
 
-    connect(theEther,SIGNAL(dispachMsg(tMsgFrame*)),this,SLOT(reciveMsgFromET(tMsgFrame*)));
-    connect(this,SIGNAL(sendMsgToET(tMsgFrame*)),theEther,SLOT(sendMSG(tMsgFrame*)));
-    connect(theEther,SIGNAL(coalisionSig()),this,SLOT(setCoalision()));
+    //connect(this->theTimer,SIGNAL(timeout()),this,SLOT(noACKalarm()));
+
+    /*
+    connect(theEther, SIGNAL(dispachMsg(tMsgFrame * )), this, SLOT(reciveMsgFromET(tMsgFrame * )));
+    connect(this, SIGNAL(sendMsgToET(tMsgFrame * )), theEther, SLOT(sendMSG(tMsgFrame * )));
+    connect(theEther, SIGNAL(coalisionSig()), this, SLOT(setCoalision()));
+    */
 }
 
 nRF24l01plus::~nRF24l01plus()
@@ -30,7 +37,8 @@ nRF24l01plus::~nRF24l01plus()
  *
  */
 void nRF24l01plus::startPTX()
-{   //
+{
+    printf("\nnRF24l01plus::startPTX\n");
     if(getCE() == false || isPWRUP() == false)return;
     if(isRX_MODE())return;
     tMsgFrame * packetToSend = getTXpacket();
@@ -38,7 +46,7 @@ void nRF24l01plus::startPTX()
     //packet found in TX that is not ACK packet
     //load with TX address
     packetToSend->Address = getTXaddress();
-    emit sendMsgToET((tMsgFrame*)packetToSend);
+    //emit sendMsgToEther((tMsgFrame*)packetToSend);
     //check if ack expected
     if((packetToSend->Packet_Control_Field.NP_ACK == 0) && (getARC()!=0))
     {
@@ -46,7 +54,8 @@ void nRF24l01plus::startPTX()
         ACK_address = getTXaddress();
         waitingForACK = true;
         clearARC_CNT();
-        theTimer->start(getARD()*10);
+        printf("ARD=%u\n",getARD());
+        startTimer(getARD()*10);
         TXpacket = packetToSend;
     }
     else
@@ -95,8 +104,10 @@ void nRF24l01plus::PWRUPset()
     startPTX();
 }
 
-void nRF24l01plus::ackReceved(tMsgFrame *theMSG,byte pipe)
+void nRF24l01plus::ackReceived(tMsgFrame *theMSG,byte pipe)
 {
+
+    printf("\nnRF24l01plus::ackReceved\n");
     if(isDynamicACKEnabled())
     {//coud be ACK with payload
         receve_frame(theMSG,pipe);
@@ -124,31 +135,35 @@ void nRF24l01plus::ackReceved(tMsgFrame *theMSG,byte pipe)
     }
 }
 
-void nRF24l01plus::noACKalarm()
+void nRF24l01plus::noACKalarm(Timer& timer)
 {
+    printf("\nnRF24l01plus::noACKalarm\n");
     if(getARC_CNT() == getARC())
     {//number of max retransmits acchived
      //failed to reach targe set aproprite flags
         PLOS_CNT_INC();
         setMAX_RT_IRQ();
         if(lastTransmited != NULL)
+        {
             delete lastTransmited;
+        }
         lastTransmited = TXpacket;
         theTimer->stop();
         waitingForACK = false;
     }
     else
     {//retransmit message and increasse reTransCounter and start timer again
-        emit sendMsgToET(TXpacket);
+        //emit sendMsgToET(TXpacket);
         //setup wait for ack...
         ARC_CNT_INC();
-        theTimer->start(getARD() * 10);//10ms real life 250us
+        startTimer(getARD() * 10);//10ms real life 250us
     }
 }
 
-void nRF24l01plus::reciveMsgFromET(tMsgFrame *theMSG)
+void nRF24l01plus::receiveMsgFromEther(tMsgFrame *theMSG)
 {
-    if(!coalision)
+    printf("\nnRF24l01plus::reciveMsgFromET\n");
+    if(!collision)
     {//coalision did not happen
         if(isPWRUP() && getCE())
         {//in Standby mode (PWRUP = 1 && CE = 1)
@@ -166,19 +181,24 @@ void nRF24l01plus::reciveMsgFromET(tMsgFrame *theMSG)
             {//waiting for ack
                 if(pipe == addressToPype(getTXaddress()))
                 {//addess is the P0 address, this is ACK packet
-                    ackReceved(theMSG,pipe);
+                    ackReceived(theMSG,pipe);
                 }
             }
         }
     }
-    coalision = false;
+    collision = false;
 }
 
-void nRF24l01plus::setCoalision()
+void nRF24l01plus::setCollision()
 {
-    coalision = true;
+    collision = true;
 }
 
 
+void nRF24l01plus::startTimer(int time)
+{
+    theTimer = std::unique_ptr<Timer>(new Timer(time, 0));
+    theTimer->start(TimerCallback<nRF24l01plus>(*this, &nRF24l01plus::noACKalarm));
+}
 
 

@@ -1,30 +1,39 @@
-#include <QDebug>
 #include "ether.h"
+#include <stdio.h>
 
-Ether::Ether(QObject *parent) :
-    QThread(parent)
+using namespace Poco;
+using namespace std;
+
+Ether::Ether()
 {
-    myTimer = new QTimer(this);
-    connect(myTimer,SIGNAL(timeout()),this,SLOT(alarm()));
 }
 
 void Ether::sendMSG(tMsgFrame *theMSG)
 {
+    printf("sendMSG\n");
     if(mutex.tryLock(0))
     {
         MSG = theMSG;
-        myTimer->start(60);
+        startTimer(60);
     }
     else
     {
-        emit coalisionSig();
+        //emit coalisionSig();
+        collisionSig();
     }
 }
 
-void Ether::alarm()
+void Ether::alarm(Timer& timer)
 {
+    printf("Ether::alarm\n");
     mutex.unlock();
     myTimer->stop();
-    emit dispachMsg(MSG);
-    MSG = NULL;
+    dispachMsg(MSG);
+    MSG = nullptr;
+}
+
+void Ether::startTimer(int time)
+{
+    myTimer = std::unique_ptr<Timer>(new Timer(time, 0));
+    myTimer->start(TimerCallback<Ether>(*this, &Ether::alarm));
 }

@@ -29,3 +29,9 @@
 
 # QT user settings
 *.user
+
+#idea
+.idea
+
+#cmake
+cmake-build-debug

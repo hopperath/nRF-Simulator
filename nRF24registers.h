@@ -3,15 +3,12 @@
 
 #include <stdint.h>
 #include "nRF24bits_struct.h"
-#include <QObject>
-#include <QThread>
 
-class nRF24registers:public QThread
+class nRF24registers
 {
-    Q_OBJECT
     public:
         /** Default constructor */
-        nRF24registers(QObject * parent = 0);
+        nRF24registers();
         /** Default destructor */
         ~nRF24registers();
         void printRegContents();
@@ -60,7 +57,8 @@ class nRF24registers:public QThread
         tREGISTERS REGISTERS;
         void * register_array[0x1E];
         bool CE;
-    signals:
+
+    //signals
         void CEsetHIGH(void);
         void TXmodeSet(void);
         void PWRUPset(void);

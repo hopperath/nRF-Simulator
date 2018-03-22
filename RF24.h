@@ -15,7 +15,7 @@
 #ifndef __RF24_H__
 #define __RF24_H__
 
-#include <RF24_config.h>
+#include "RF24_config.h"
 #include "nRF24l01plus.h"
 
 #define LOW 0

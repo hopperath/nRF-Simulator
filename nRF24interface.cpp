@@ -3,7 +3,7 @@
 #include <string.h>
 
 
-nRF24interface::nRF24interface(QObject *parent):nRF24registers(parent),sREUSE_TX_PL(false),lastTransmited(NULL),PID(0)
+nRF24interface::nRF24interface():nRF24registers(),sREUSE_TX_PL(false),lastTransmited(NULL),PID(0)
 {
     //ctor
 }
@@ -70,7 +70,7 @@ byte nRF24interface::Spi_Write(byte * msg,int msgLen, byte* msgBack)
         if( (addr == eRX_ADDR_P0) || (addr == eRX_ADDR_P1) || addr == eTX_ADDR)
         {
             *((uint64_t*)(msgBack)) = *((uint64_t*)read_reg);
-            printf("\n0x%lX\n",*((uint64_t*)msgBack));
+            printf("\n0x%llX\n",*((uint64_t*)msgBack));
         }
         break;
     case eW_REGISTER:
@@ -331,7 +331,7 @@ bool nRF24interface::receve_frame(tMsgFrame * theFrame, byte pipe)
     if(isFIFO_RX_FULL())return false;
 
     /***Receve the frame***/
-    tMsgFrame * newFrame = new tMsgFrame;
+    auto newFrame = new tMsgFrame;
     memcpy(newFrame,theFrame,sizeof(tMsgFrame));
     /********push into RX FIFO*******/
     if(isFIFO_RX_EMTPY())

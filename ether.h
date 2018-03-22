@@ -1,28 +1,33 @@
 #ifndef ETHER_H
 #define ETHER_H
 
-#include <QThread>
-#include <QTimer>
-#include <QMutex>
+#include <Poco/Timer.h>
+#include <Poco/Mutex.h>
 
 #include "msgframe.h"
 
-class Ether : public QThread
+class Ether
 {
-    Q_OBJECT
 public:
-    explicit Ether(QObject *parent = 0);
-signals:
+    explicit Ether();
+//signals:
     void dispachMsg(tMsgFrame * theMSG);
-    void coalisionSig();
-public slots:
+    void collisionSig();
+
+//slots
+public:
     void sendMSG(tMsgFrame * theMSG);
+
 private:
-    QMutex mutex;
-    QTimer * myTimer;
-    tMsgFrame * MSG;
-private slots:
-    void alarm();
+    Poco::Mutex mutex;
+    std::unique_ptr<Poco::Timer> myTimer;
+    tMsgFrame* MSG;
+
+    void startTimer(int time);
+
+//slots
+private:
+    void alarm(Poco::Timer& timer);
 
 };
 

@@ -386,6 +386,7 @@ void RF24::powerUp(void)
 
 bool RF24::write( const void* buf, uint8_t len )
 {
+    printf("RF24::write\n");
   bool result = false;
 
   // Begin the write

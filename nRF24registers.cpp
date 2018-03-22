@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-nRF24registers::nRF24registers(QObject *parent):QThread(parent),CE(false)
+nRF24registers::nRF24registers():CE(false)
 {
     register_array[eCONFIG]      = &REGISTERS.sCONFIG;
     *((byte*)register_array[eCONFIG]) = 0b00001000;
@@ -101,7 +101,8 @@ nRF24registers::~nRF24registers()
 void nRF24registers::setCE_HIGH()
 {
     CE = true;
-    emit CEsetHIGH();
+    //was signal
+    CEsetHIGH();
 }
 
 byte * nRF24registers::read_register(byte* read_command)
@@ -152,16 +153,18 @@ void nRF24registers::write_register(byte * bytes_to_write)
         if( (addr == eRX_ADDR_P0) ||  (addr == eRX_ADDR_P1) || (addr == eTX_ADDR))
         {
             *((uint64_t*)where_to_write) = *((uint64_t*)(bytes_to_write+1));
-            printf("\nWritten: %lx", *((uint64_t*)where_to_write) );
+            printf("\nWritten: %llx", *((uint64_t*)where_to_write) );
         }
     }
     if(emitTXmodeSignal == true)
     {
-        emit TXmodeSet();
+        //emit TXmodeSet();
+        TXmodeSet();
     }
     if(emitPWRUPsig == true)
     {
-        emit PWRUPset();
+        //emit PWRUPset();
+        PWRUPset();
     }
 }
 
@@ -387,9 +390,9 @@ void nRF24registers::printRegContents()
     printf("RPD.RPD => %d\n",REGISTERS.sRPD.sRPD);
 
     printf("\n---RX_ADDR_P0---\n");
-    printf("0x%lX\n",*((uint64_t*)register_array[eRX_ADDR_P0]) );
+    printf("0x%llX\n",*((uint64_t*)register_array[eRX_ADDR_P0]) );
     printf("\n---RX_ADDR_P1---\n");
-    printf("0x%lX\n",*((uint64_t*)register_array[eRX_ADDR_P1]) );
+    printf("0x%llX\n",*((uint64_t*)register_array[eRX_ADDR_P1]) );
     printf("\n---RX_ADDR_P2---\n");
     printf("%X\n",*((byte*)register_array[eRX_ADDR_P2]) );
     printf("\n---RX_ADDR_P3---\n");
@@ -399,7 +402,7 @@ void nRF24registers::printRegContents()
     printf("\n---RX_ADDR_P5---\n");
     printf("%X\n",*((byte*)register_array[eRX_ADDR_P5]) );
     printf("\n---TX_ADDR---\n");
-    printf("0x%lX\n",*((uint64_t*)register_array[eTX_ADDR]) );
+    printf("0x%llX\n",*((uint64_t*)register_array[eTX_ADDR]) );
 
     printf("\n---RX_PW_P0---\n");
     printf("RX_PW_P0.Reserved => %d\n",REGISTERS.sRX_PW_P0.sReserved);
