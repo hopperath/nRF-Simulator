@@ -1,24 +1,30 @@
+#include <Poco/Delegate.h>
 #include "nRF24l01plus.h"
 #include "ether.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
+using namespace std;
 using namespace Poco;
+
 //constructor
-nRF24l01plus::nRF24l01plus(Ether* someEther):nRF24interface(),collision(false),theEther(someEther)
+nRF24l01plus::nRF24l01plus(string& id, Ether* someEther) : theEther(someEther)
 {
+    this->id = id;
     //ctor
-    //theTimer = new QTimer(this);
+
+    //inbound events
+    theEther->dispatchMsgEvent += Poco::delegate(this, &nRF24l01plus::receiveMsgFromEther);
+    theEther->collisionEvent += Poco::delegate(this, &nRF24l01plus::setCollision);
+
+    //outbound events
+    sendMsgEvent += Poco::delegate(someEther, &Ether::enterEther);
+
+    noACKalarmCallback = unique_ptr<TimerCallback<nRF24l01plus>>(new TimerCallback<nRF24l01plus>(*this, &nRF24l01plus::noACKalarm));
     /*
     connect(this,SIGNAL(CEsetHIGH()),this,SLOT(CEsetHIGH()));
     connect(this,SIGNAL(TXmodeSet()),this,SLOT(TXmodeSet()));
     connect(this,SIGNAL(PWRUPset()),this,SLOT(PWRUPset()));
     connect(this,SIGNAL(TXpacketAdded()),this,SLOT(TXpacketAdded()));
     */
-
-    //connect(this->theTimer,SIGNAL(timeout()),this,SLOT(noACKalarm()));
 
     /*
     connect(theEther, SIGNAL(dispachMsg(tMsgFrame * )), this, SLOT(reciveMsgFromET(tMsgFrame * )));
@@ -27,9 +33,51 @@ nRF24l01plus::nRF24l01plus(Ether* someEther):nRF24interface(),collision(false),t
     */
 }
 
+void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG)
+{
+    printf("%s: nRF24l01plus::receiveMsgFromEther collision=%d\n", id.c_str(), collision);
+    if (!collision)
+    {//coalision did not happen
+        printf("%s: pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d\n", id.c_str(), isPWRUP(), getCE(), isRX_MODE(), waitingForACK);
+        printf("%s: msg: %s\n", id.c_str(), theMSG.toString().c_str());
+        if (isPWRUP() && getCE())
+        {//in Standby mode (PWRUP = 1 && CE = 1)
+            byte pipe = addressToPipe(theMSG.Address);
+            //printf("%s: pipe=%u\n", id.c_str(), pipe);
+            if (isRX_MODE())
+            {//receiving
+                //check if address is one off th
+                if (pipe!=0xFF)
+                {//pipe is open ready to receve
+                    //fill RX buffer1
+                    receive_frame(&theMSG, pipe);
+                }
+            }
+            else if (waitingForACK)
+            {//waiting for ack
+                if (pipe==addressToPipe(getTXaddress()))
+                {//addess is the P0 address, this is ACK packet
+                    ackReceived(&theMSG, pipe);
+                }
+            }
+        }
+        else
+        {
+
+        }
+    }
+    collision = false;
+}
+
 nRF24l01plus::~nRF24l01plus()
 {
     //dtor
+}
+
+void nRF24l01plus::sendMsgToEther(tMsgFrame* theMSG)
+{
+    printf("%s: sendMsgToEther:msg.addr=%llx\n",id.c_str(),theMSG->Address);
+    sendMsgEvent.notifyAsync(this, *theMSG);
 }
 
 /*
@@ -38,32 +86,43 @@ nRF24l01plus::~nRF24l01plus()
  */
 void nRF24l01plus::startPTX()
 {
-    printf("\nnRF24l01plus::startPTX\n");
-    if(getCE() == false || isPWRUP() == false)return;
-    if(isRX_MODE())return;
-    tMsgFrame * packetToSend = getTXpacket();
-    if(packetToSend == NULL)return;
+    printf("%s: nRF24l01plus::startPTX\n", id.c_str());
+    if (getCE()==false || isPWRUP()==false)
+    {
+        return;
+    }
+
+    if (isRX_MODE())
+    {
+        return;
+    }
+
+    tMsgFrame* packetToSend = getTXpacket();
+    if (packetToSend==nullptr)
+    {
+        return;
+    }
     //packet found in TX that is not ACK packet
     //load with TX address
     packetToSend->Address = getTXaddress();
-    //emit sendMsgToEther((tMsgFrame*)packetToSend);
+    sendMsgToEther(packetToSend);
     //check if ack expected
-    if((packetToSend->Packet_Control_Field.NP_ACK == 0) && (getARC()!=0))
+    if ((packetToSend->Packet_Control_Field.NP_ACK==0) && (getARC()!=0))
     {
         //set for ACK recipt..
         ACK_address = getTXaddress();
         waitingForACK = true;
         clearARC_CNT();
-        printf("ARD=%u\n",getARD());
-        startTimer(getARD()*10);
+        printf("%s: Autoretry delay ARD=%u\n", id.c_str(), getARD());
+        startTimer(getARD() * 10);
         TXpacket = packetToSend;
     }
     else
     {//no ack last transmited is the one that is
-        if(lastTransmited != NULL)
+        if (lastTransmited!=nullptr)
         {
             delete lastTransmited;
-            lastTransmited = NULL;
+            lastTransmited = nullptr;
         }
         lastTransmited = packetToSend;
         setTX_DS_IRQ();
@@ -77,7 +136,8 @@ void nRF24l01plus::startPTX()
 void nRF24l01plus::CEsetHIGH()
 {
     //if nRF is in RX mode nothing shoud happen;
-    if(isRX_MODE() == true || isPWRUP() == false)return;
+    if (isRX_MODE()==true || isPWRUP()==false)
+    { return; }
     startPTX();
 }
 
@@ -87,45 +147,48 @@ void nRF24l01plus::CEsetHIGH()
  */
 void nRF24l01plus::TXmodeSet()
 {
-    if(getCE() == false || isPWRUP() == false) return;
+    if (getCE()==false || isPWRUP()==false)
+    { return; }
     startPTX();
 
 }
 
 void nRF24l01plus::TXpacketAdded()
 {
-    if(getCE() == false || isRX_MODE() == true || isPWRUP() == false) return;
+    if (getCE()==false || isRX_MODE()==true || isPWRUP()==false)
+    { return; }
     startPTX();
 }
 
 void nRF24l01plus::PWRUPset()
 {
-    if(getCE() == false || isRX_MODE() == true)return;
+    if (getCE()==false || isRX_MODE()==true)
+    { return; }
     startPTX();
 }
 
-void nRF24l01plus::ackReceived(tMsgFrame *theMSG,byte pipe)
+void nRF24l01plus::ackReceived(tMsgFrame* theMSG, byte pipe)
 {
 
-    printf("\nnRF24l01plus::ackReceved\n");
-    if(isDynamicACKEnabled())
+    printf("%s: nRF24l01+::ackReceived\n", id.c_str());
+    if (isDynamicACKEnabled())
     {//coud be ACK with payload
-        receve_frame(theMSG,pipe);
+        receive_frame(theMSG, pipe);
         waitingForACK = false;
     }
     else
     {//could be regular ack
-        if(theMSG->Packet_Control_Field.Payload_length == 0)
+        if (theMSG->Packet_Control_Field.Payload_length==0)
         {//regular ACK receved :D
             waitingForACK = false;
         }
     }
 
-    if(waitingForACK == false)
+    if (waitingForACK==false)
     {
-        theTimer->stop();
+        theTimer.stop();
 
-        if(lastTransmited != NULL)
+        if (lastTransmited!=NULL)
         {
             delete lastTransmited;
             lastTransmited = NULL;
@@ -137,56 +200,26 @@ void nRF24l01plus::ackReceived(tMsgFrame *theMSG,byte pipe)
 
 void nRF24l01plus::noACKalarm(Timer& timer)
 {
-    printf("\nnRF24l01plus::noACKalarm\n");
-    if(getARC_CNT() == getARC())
+    printf("%s: nRF24l01+::noACKalarm\n", id.c_str());
+    if (getARC_CNT()==getARC())
     {//number of max retransmits acchived
-     //failed to reach targe set aproprite flags
+        //failed to reach targe set aproprite flags
         PLOS_CNT_INC();
         setMAX_RT_IRQ();
-        if(lastTransmited != NULL)
+        if (lastTransmited!=NULL)
         {
             delete lastTransmited;
         }
         lastTransmited = TXpacket;
-        theTimer->stop();
         waitingForACK = false;
     }
     else
     {//retransmit message and increasse reTransCounter and start timer again
-        //emit sendMsgToET(TXpacket);
+        sendMsgToEther(TXpacket);
         //setup wait for ack...
         ARC_CNT_INC();
         startTimer(getARD() * 10);//10ms real life 250us
     }
-}
-
-void nRF24l01plus::receiveMsgFromEther(tMsgFrame *theMSG)
-{
-    printf("\nnRF24l01plus::reciveMsgFromET\n");
-    if(!collision)
-    {//coalision did not happen
-        if(isPWRUP() && getCE())
-        {//in Standby mode (PWRUP = 1 && CE = 1)
-            byte pipe = addressToPype(theMSG->Address);
-            if(isRX_MODE())
-            {//receving
-             //check if address is one off th
-                if(pipe != 0xFF)
-                {//pipe is open ready to receve
-                    //fill RX buffer
-                    receve_frame(theMSG,pipe);
-                }
-            }
-            else if(waitingForACK)
-            {//waiting for ack
-                if(pipe == addressToPype(getTXaddress()))
-                {//addess is the P0 address, this is ACK packet
-                    ackReceived(theMSG,pipe);
-                }
-            }
-        }
-    }
-    collision = false;
 }
 
 void nRF24l01plus::setCollision()
@@ -194,11 +227,15 @@ void nRF24l01plus::setCollision()
     collision = true;
 }
 
-
 void nRF24l01plus::startTimer(int time)
 {
-    theTimer = std::unique_ptr<Timer>(new Timer(time, 0));
-    theTimer->start(TimerCallback<nRF24l01plus>(*this, &nRF24l01plus::noACKalarm));
+    if (time > 0)
+    {
+        printf("%s: nRF24l01+::startTimer %d\n", id.c_str(), time);
+        theTimer.setStartInterval(time);
+        theTimer.setPeriodicInterval(0);
+        theTimer.start(*noACKalarmCallback);
+    }
 }
 
 

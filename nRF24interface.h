@@ -12,10 +12,10 @@ class nRF24interface : public nRF24registers
         /** Default constructor */
         nRF24interface();
         /** Default destructor */
-        ~nRF24interface();
+        virtual ~nRF24interface();
         byte Spi_Write(byte * msg, int msgLen, byte * msgBack);
         //move to protected
-        bool receve_frame(tMsgFrame * theFrame, byte pipe);
+        bool receive_frame(tMsgFrame * theFrame, byte pipe);
     protected:
         //inteface functions
         tMsgFrame* read_RX_payload();

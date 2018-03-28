@@ -1,9 +1,14 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <string>
+#include <chrono>
+#include <iostream>
+
 #include "nRF24l01plus.h"
 #include "RF24.h"
 #include "ether.h"
+
+using namespace std;
+using namespace chrono;
 
 /*
 Comentting back storrry
@@ -47,39 +52,66 @@ void printBin(byte toPrint)
         toPrint<<=1;
     }
 }
+
 int main(int argc, char *argv[])
 {
     Ether* ether = new Ether();
-    nRF24l01plus* test = new nRF24l01plus(ether);
-    //nRF24l01plus* test2 = new nRF24l01plus(0,ether);
 
+    string id1="95";
+    string id2="96";
 
-
-
-    RF24* radio = new RF24(9,10,test);
-    //RF24* radio2 = new RF24(9,10,test2);
+    RF24* radio = new RF24(9,10,new nRF24l01plus(id1,ether));
+    RF24* radio2 = new RF24(9,10,new nRF24l01plus(id2,ether));
 
     radio->begin();
-    radio->setRetries(15,15);
+    radio->setRetries(0,5);
     radio->setPayloadSize(8);
     radio->openWritingPipe(0xF0F0F0F0E1);
     radio->openReadingPipe(1, 0xF0F0F0F0D2);
+    radio->stopListening();
+    //radio->printDetails();
 
-    /*
     radio2->begin();
-    radio2->setRetries(15,15);
+    radio2->setRetries(0,5);
     radio2->setPayloadSize(8);
     radio2->openWritingPipe(0xF0F0F0F0D2);
     radio2->openReadingPipe(1, 0xF0F0F0F0E1);
-    */
 
-    //radio->startListening();
-    radio->stopListening();
-    getchar();
-    //radio->printDetails();
-    printf("writing\n");
+    radio2->startListening();
+
     char payload[] = "test";
     radio->write("test",sizeof(payload));
+
+    auto start = steady_clock::now();
+
+    auto started_waiting_at = steady_clock::now();
+    milliseconds RxTimeout(200);
+    bool timeout = false;
+
+
+    while ( !radio2->available() )
+    {
+        // If waited longer than 200ms, indicate timeout and exit while loop                      // While nothing is received
+        if (steady_clock::now() - started_waiting_at > RxTimeout)
+        {
+            timeout=true;
+            break;
+        }
+    }
+    auto end = steady_clock::now();
+
+    cout << "duration=" << duration_cast<milliseconds>(end-start).count() << endl;
+
+    if (timeout)
+    {
+        printf("Timeout!");
+    }
+    else
+    {
+        char buffer[10];
+        radio2->read(buffer,10);
+        printf("buffer=%s",buffer);
+    }
 
     /*
     radio2->stopListening();

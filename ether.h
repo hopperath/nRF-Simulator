@@ -3,31 +3,34 @@
 
 #include <Poco/Timer.h>
 #include <Poco/Mutex.h>
+#include <Poco/BasicEvent.h>
 
 #include "msgframe.h"
 
 class Ether
 {
-public:
-    explicit Ether();
-//signals:
-    void dispachMsg(tMsgFrame * theMSG);
-    void collisionSig();
+    private:
+        //This is thread based
+        Poco::Mutex mutex;
+        bool locked = false;
+        std::unique_ptr<Poco::TimerCallback<Ether>> alarmCallback;
+        std::unique_ptr<Poco::Timer> myTimer;
+        tMsgFrame mMsg;
 
-//slots
-public:
-    void sendMSG(tMsgFrame * theMSG);
+    public:
+        Poco::BasicEvent<tMsgFrame> dispatchMsgEvent;
+        Poco::BasicEvent<void> collisionEvent;
 
-private:
-    Poco::Mutex mutex;
-    std::unique_ptr<Poco::Timer> myTimer;
-    tMsgFrame* MSG;
+    public:
+        explicit Ether();
+        //Event methods
+        void leaveEther();
+        void collisionSig();
+        void enterEther(const void* pSender, tMsgFrame& theMSG);
 
-    void startTimer(int time);
-
-//slots
-private:
-    void alarm(Poco::Timer& timer);
+    private:
+        void propogate(Poco::Timer& timer);
+        void startTimer(int time);
 
 };
 

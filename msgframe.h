@@ -1,6 +1,9 @@
 #ifndef MSGFRAME_H
 #define MSGFRAME_H
-#include <stdint.h>
+#include <cstdint>
+#include <sstream>
+#include <string>
+
 typedef struct sPACKET_CONTROL_FIELD
 {
     uint8_t Payload_length:6;
@@ -13,6 +16,11 @@ typedef struct sFRAME
     uint64_t Address;
     tPACKET_CONTROL_FIELD Packet_Control_Field;
     uint8_t Payload[32];
+
+    std::string toString();
+
+
+
 }tMsgFrame;
 
 

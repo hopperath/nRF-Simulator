@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.9)
 project(nRF_Simulator)
 
 set(CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 
 set(POCO_PREFIX "/usr/local/") # the directory containing "include" and "lib"
@@ -19,6 +20,7 @@ set(SOURCE_FILES
         ether.h
         main.cpp
         msgframe.h
+        msgframe.cpp
         nRF24bits_struct.h
         nRF24interface.cpp
         nRF24interface.h

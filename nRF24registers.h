@@ -2,15 +2,19 @@
 #define NRF24REGISTERS_H
 
 #include <stdint.h>
+#include <string>
 #include "nRF24bits_struct.h"
 
 class nRF24registers
 {
     public:
+        std::string id;
+
+    public:
         /** Default constructor */
         nRF24registers();
         /** Default destructor */
-        ~nRF24registers();
+        virtual ~nRF24registers();
         void printRegContents();
         bool checkIRQ();
         void setCE_HIGH();
@@ -19,12 +23,12 @@ class nRF24registers
     protected:
         byte * read_register(byte * read_command);
         void write_register(byte * bytes_to_write);
-        byte addressToPype(uint64_t address);
+        byte addressToPipe(uint64_t address);
         uint64_t getAddressFromPipe(byte pipe);
         uint64_t getAddressFromPipe_ENAA(byte pipe);
         uint8_t getARD(){return REGISTERS.sSETUP_RETR.sARD;}
         uint8_t getARC(){return REGISTERS.sSETUP_RETR.sARC;}
-        uint64_t getTXaddress(){return *( (uint64_t*)register_array[eTX_ADDR] );}
+        uint64_t getTXaddress();
         bool isDynamicACKEnabled(){return REGISTERS.sFEATURE.sEN_DYN_ACK;}
         bool isDynamicPayloadEnabled(){return REGISTERS.sFEATURE.sEN_DPL;}
         bool isFIFO_TX_EMPTY(){return REGISTERS.sFIFO_STATUS.sTX_EMPTY;}
@@ -52,16 +56,17 @@ class nRF24registers
         void ARC_CNT_INC();
         void clearARC_CNT(){REGISTERS.sOBSERVE_TX.sARC_CNT = 0;}
         uint8_t getARC_CNT(){return REGISTERS.sOBSERVE_TX.sARC_CNT;}
-        void setRX_P_NO(byte pipe){REGISTERS.sSTATUS.sRX_P_NO = pipe;}        
+        void setRX_P_NO(byte pipe){REGISTERS.sSTATUS.sRX_P_NO = pipe;}
+        void printBin(byte toPrint);
     private:
         tREGISTERS REGISTERS;
         void * register_array[0x1E];
         bool CE;
 
     //signals
-        void CEsetHIGH(void);
-        void TXmodeSet(void);
-        void PWRUPset(void);
+        virtual void CEsetHIGH() = 0;
+        virtual void TXmodeSet() = 0;
+        virtual void PWRUPset() = 0;
 };
 
 #endif // NRF24REGISTERS_H

@@ -58,7 +58,7 @@ private:
   bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */
   uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
   uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
-  nRF24l01plus * theNRF24l01plus;
+  nRF24l01plus* theNRF24l01plus;
 protected:
   /**
    * @name Low-level internal interface.

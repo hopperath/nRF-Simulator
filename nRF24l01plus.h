@@ -1,40 +1,48 @@
 #ifndef NRF24L01PLUS_H
 #define NRF24L01PLUS_H
 
-#include <stdint.h>
+#include <cstdint>
 #include "nRF24interface.h"
 
 class Ether;
 
-#include <poco/Timer.h>
+#include <Poco/BasicEvent.h>
+#include <Poco/Timer.h>
 #include <queue>
 #include <memory>
 
 class nRF24l01plus : public nRF24interface
 {
     public:
-        nRF24l01plus(Ether* someEther = NULL);
-        virtual ~nRF24l01plus();
+        Poco::BasicEvent<tMsgFrame> sendMsgEvent;
+
+        bool waitingForACK = false;
+        bool collision = false;
+        std::shared_ptr<Ether> theEther;
+        tMsgFrame* TXpacket;
+        uint64_t ACK_address;
+        Poco::Timer theTimer;
+        //Poco::TimerCallback<nRF24l01plus>* noACKalarmCallback;
+        std::unique_ptr<Poco::TimerCallback<nRF24l01plus>> noACKalarmCallback;
+
+
+    public:
+        explicit nRF24l01plus(std::string& id, Ether* someEther = NULL);
+        ~nRF24l01plus() override;
     protected:
     private:
-        void send_frame(tMsgFrame * theFrame);
+        void send_frame(tMsgFrame* theFrame);
         //Ether interface placeholders
-        void send_to_ether(tMsgFrame * theFrame);
+        void send_to_ether(tMsgFrame* theFrame);
         void startPTX();
-        tMsgFrame* TXpacket;
-        std::unique_ptr<Poco::Timer> theTimer;
-        uint64_t ACK_address;
-        bool waitingForACK;
-        bool collision;
-        std::shared_ptr<Ether> theEther;
-        void ackReceived(tMsgFrame * theMSG, byte pipe);
+        void ackReceived(tMsgFrame* theMSG, byte pipe);
 
-        void CEsetHIGH();
-        void TXmodeSet();
+        void CEsetHIGH() override ;
+        void TXmodeSet() override ;
+        void PWRUPset() override ;
         void TXpacketAdded();
-        void PWRUPset(void);
         void noACKalarm(Poco::Timer& timer);
-        void receiveMsgFromEther(tMsgFrame * theMSG);
+        void receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG);
         void setCollision();
         void startTimer(int time);
 
