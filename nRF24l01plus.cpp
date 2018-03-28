@@ -46,7 +46,7 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG)
             //printf("%s: pipe=%u\n", id.c_str(), pipe);
             if (isRX_MODE())
             {//receiving
-                //check if address is one off th
+                //check if address is one off the pipe addresses
                 if (pipe!=0xFF)
                 {//pipe is open ready to receve
                     //fill RX buffer1
@@ -60,10 +60,6 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG)
                     ackReceived(&theMSG, pipe);
                 }
             }
-        }
-        else
-        {
-
         }
     }
     collision = false;
@@ -137,7 +133,9 @@ void nRF24l01plus::CEsetHIGH()
 {
     //if nRF is in RX mode nothing shoud happen;
     if (isRX_MODE()==true || isPWRUP()==false)
-    { return; }
+    {
+        return;
+    }
     startPTX();
 }
 
@@ -148,7 +146,9 @@ void nRF24l01plus::CEsetHIGH()
 void nRF24l01plus::TXmodeSet()
 {
     if (getCE()==false || isPWRUP()==false)
-    { return; }
+    {
+        return;
+    }
     startPTX();
 
 }
@@ -156,14 +156,18 @@ void nRF24l01plus::TXmodeSet()
 void nRF24l01plus::TXpacketAdded()
 {
     if (getCE()==false || isRX_MODE()==true || isPWRUP()==false)
-    { return; }
+    {
+        return;
+    }
     startPTX();
 }
 
 void nRF24l01plus::PWRUPset()
 {
     if (getCE()==false || isRX_MODE()==true)
-    { return; }
+    {
+        return;
+    }
     startPTX();
 }
 

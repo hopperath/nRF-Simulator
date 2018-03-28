@@ -27,13 +27,10 @@ class nRF24l01plus : public nRF24interface
 
 
     public:
-        explicit nRF24l01plus(std::string& id, Ether* someEther = NULL);
+        explicit nRF24l01plus(std::string& id, Ether* someEther = nullptr);
         ~nRF24l01plus() override;
     protected:
     private:
-        void send_frame(tMsgFrame* theFrame);
-        //Ether interface placeholders
-        void send_to_ether(tMsgFrame* theFrame);
         void startPTX();
         void ackReceived(tMsgFrame* theMSG, byte pipe);
 
@@ -42,12 +39,13 @@ class nRF24l01plus : public nRF24interface
         void PWRUPset() override ;
         void TXpacketAdded();
         void noACKalarm(Poco::Timer& timer);
-        void receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG);
         void setCollision();
         void startTimer(int time);
 
 
+        //Ether interface placeholders
         void sendMsgToEther(tMsgFrame* theMSG);
+        void receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG);
 };
 
 #endif // NRF24L01PLUS_H
