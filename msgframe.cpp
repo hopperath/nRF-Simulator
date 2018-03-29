@@ -8,7 +8,7 @@ std::string sFRAME::toString()
     std::stringstream stream;
     stream << std::hex << "addr=0x" << Address << " len=" << std::dec << +Packet_Control_Field.Payload_length;
     stream << " PID=" << std::bitset<2>(Packet_Control_Field.PID);
-    stream << " NP_ACK=" << std::bitset<1>(Packet_Control_Field.NP_ACK);
+    stream << " NO_ACK=" << std::bitset<1>(Packet_Control_Field.NO_ACK);
     std::string result( stream.str() );
 
     return result;

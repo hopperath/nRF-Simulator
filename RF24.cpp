@@ -392,7 +392,7 @@ void RF24::powerUp(void)
 
 bool RF24::write(const void* buf, uint8_t len)
 {
-    printf("%s RF24::write len=%u\n", theNRF24l01plus->id.c_str(), len);
+    printf("%d RF24::write len=%u\n", theNRF24l01plus->id, len);
     bool result = false;
 
     // Begin the write
@@ -554,7 +554,7 @@ void RF24::openWritingPipe(uint64_t value)
     // Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
     // expects it LSB first too, so we're good.
 
-    printf("%s: wpipe   0x%llx\n",theNRF24l01plus->id.c_str(),value);
+    printf("%d: wpipe   0x%llx\n",theNRF24l01plus->id,value);
 
 
     write_register(RX_ADDR_P0, reinterpret_cast<uint8_t*>(&value), 5);
@@ -581,7 +581,7 @@ static const uint8_t child_pipe_enable[] =
 
 void RF24::openReadingPipe(uint8_t child, uint64_t address)
 {
-    printf("%s: rpipe %u:0x%llx\n",theNRF24l01plus->id.c_str(),child,address);
+    printf("%d: rpipe %u:0x%llx\n",theNRF24l01plus->id,child,address);
     // If this is pipe 0, cache the address.  This is needed because
     // openWritingPipe() will overwrite the pipe 0 address, so
     // startListening() will have to restore it.

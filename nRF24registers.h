@@ -8,7 +8,9 @@
 class nRF24registers
 {
     public:
-        std::string id;
+        //Radio id for our use
+        //does not exist in chip
+        int id;
 
     public:
         /** Default constructor */
@@ -18,7 +20,7 @@ class nRF24registers
         void printRegContents();
         bool checkIRQ();
         void setCE_HIGH();
-        void setCE_LOW(){CE = false;}
+        void setCE_LOW(){printf("%d: setCE_LOW\n",id); CE = false;}
         bool getCE(){return CE;}
     protected:
         byte * read_register(byte * read_command);
@@ -36,6 +38,8 @@ class nRF24registers
         bool isFIFO_RX_EMTPY(){return REGISTERS.sFIFO_STATUS.sRX_EMPTY;}
         bool isFIFO_RX_FULL(){return REGISTERS.sFIFO_STATUS.sRX_FULL;}
         bool isRX_MODE(){return REGISTERS.sCONFIG.sPRIM_RX;}
+        void setTX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 0;}
+        void setRX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 1;}
         bool isPWRUP(){return REGISTERS.sCONFIG.sPWR_UP;}
         void clearRX_FULL(){REGISTERS.sFIFO_STATUS.sRX_FULL = 0;}
         void setRX_FULL(){REGISTERS.sFIFO_STATUS.sRX_FULL = 1;}

@@ -100,6 +100,7 @@ nRF24registers::~nRF24registers()
 
 void nRF24registers::setCE_HIGH()
 {
+    printf("%d: setCE_HIGH\n",id);
     CE = true;
     //was signal
     CEsetHIGH();
@@ -133,11 +134,11 @@ void nRF24registers::write_register(byte* bytes_to_write)
     {
         byte addr = bytes_to_write[0]&0b00011111;
 
-        printf("%s: reg addr=: 0x%02x\n",id.c_str(),addr);
+        //printf("%d: reg addr=: 0x%02x\n",id,addr);
         //no write to these registers
         if ((addr==eOBSERVE_TX) || (addr==eRPD) || (addr==eFIFO_STATUS))
         {
-            printf("%s: Register is ObserveTX eRPF or FIFOSTATUS\n", id.c_str());
+            printf("%d: Register is ObserveTX eRPF or FIFOSTATUS\n", id);
             return;
         }
 
@@ -169,12 +170,12 @@ void nRF24registers::write_register(byte* bytes_to_write)
             temp = ~temp; //inverts all, 0 become 1 and  leaves those bits alone after AND op,  where 1s are bits will get cleared after AND operation
             where_to_write[0] &= temp;
         }
-        printf("byte to write[1]: 0x%02x  ",bytes_to_write[1]);
-        printf("where to write[0]: 0x%02x\n",where_to_write[0]);
+        //printf("byte to write[1]: 0x%02x  ",bytes_to_write[1]);
+        //printf("where to write[0]: 0x%02x\n",where_to_write[0]);
         if ((addr==eRX_ADDR_P0) || (addr==eRX_ADDR_P1) || (addr==eTX_ADDR))
         {
             *((uint64_t*) where_to_write) = *((uint64_t*) (bytes_to_write + 1));
-            printf("written: %llx\n", *((uint64_t*)where_to_write) );
+            //printf("written: %llx\n", *((uint64_t*)where_to_write) );
         }
     }
     if (emitTXmodeSignal==true)
@@ -191,7 +192,7 @@ void nRF24registers::write_register(byte* bytes_to_write)
 
 uint64_t nRF24registers::getTXaddress()
 {
-    printf("%s: TX addr=%llx\n",id.c_str(), *((uint64_t*) register_array[eTX_ADDR]));
+    printf("%d: TX addr=%llx\n",id, *((uint64_t*) register_array[eTX_ADDR]));
     return *((uint64_t*) register_array[eTX_ADDR]);
 }
 

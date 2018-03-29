@@ -16,7 +16,9 @@ class nRF24l01plus : public nRF24interface
     public:
         Poco::BasicEvent<tMsgFrame> sendMsgEvent;
 
-        bool waitingForACK = false;
+        bool waitingForAck = false;
+        bool sendingAck = false;
+        tMsgFrame* ackFrame;
         bool collision = false;
         std::shared_ptr<Ether> theEther;
         tMsgFrame* TXpacket;
@@ -27,7 +29,7 @@ class nRF24l01plus : public nRF24interface
 
 
     public:
-        explicit nRF24l01plus(std::string& id, Ether* someEther = nullptr);
+        explicit nRF24l01plus(int id, Ether* someEther = nullptr);
         ~nRF24l01plus() override;
     protected:
     private:
@@ -41,7 +43,7 @@ class nRF24l01plus : public nRF24interface
         void noACKalarm(Poco::Timer& timer);
         void setCollision();
         void startTimer(int time);
-
+        void sendAutoAck(tMsgFrame* theFrame, byte pipe);
 
         //Ether interface placeholders
         void sendMsgToEther(tMsgFrame* theMSG);

@@ -8,6 +8,16 @@
 
 class nRF24interface : public nRF24registers
 {
+    protected:
+        bool sREUSE_TX_PL;
+        tMsgFrame* lastTransmited;
+
+    private:
+        //interface registers
+        std::queue<tMsgFrame*> RX_FIFO;
+        std::queue<tMsgFrame*> TX_FIFO;
+        uint8_t PID;
+
     public:
         /** Default constructor */
         nRF24interface();
@@ -18,6 +28,7 @@ class nRF24interface : public nRF24registers
         bool receive_frame(tMsgFrame * theFrame, byte pipe);
     protected:
         //inteface functions
+        void newFrame(uint64_t Address, uint8_t PayLength, uint8_t thePID, uint8_t theNP_ACK,uint8_t * Payload);
         tMsgFrame* read_RX_payload();
         tMsgFrame* getTXpacket();
         void write_TX_payload(byte * bytes_to_write, int len);
@@ -29,20 +40,13 @@ class nRF24interface : public nRF24registers
         void reuse_last_transmited_payload();
         byte* reuse_tx_payload();
         uint8_t read_RX_payload_width();
-
         byte* nop();
         commands get_command(byte command);
-        tMsgFrame* getACKmsgForPipe(byte pipe);
-        bool sREUSE_TX_PL;
-        tMsgFrame* lastTransmited;
-    private:
-        //interface registers
-        void newFrame(uint64_t Address, uint8_t PayLength, uint8_t thePID, uint8_t theNP_ACK,uint8_t * Payload);
-        std::queue<tMsgFrame*> RX_FIFO;
-        std::queue<tMsgFrame*> TX_FIFO;
-        uint8_t PID;
 
-        void TXpacketAdded(void);
+
+
+    private:
+        void TXpacketAdded();
 };
 
 #endif // NRF24INTERFACE_H

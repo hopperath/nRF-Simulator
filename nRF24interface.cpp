@@ -78,7 +78,7 @@ byte nRF24interface::Spi_Write(byte* msg,int msgLen, byte* msgBack)
         write_register(msg);
         break;
     case eR_RX_PAYLOAD:
-        printf("%s: COMMAND SENT: R_RX_PAYLOAD\n",id.c_str());
+        printf("%d: COMMAND SENT: R_RX_PAYLOAD\n",id);
         tempMsgFrame = read_RX_payload();
         if(tempMsgFrame != nullptr)
         {
@@ -87,27 +87,27 @@ byte nRF24interface::Spi_Write(byte* msg,int msgLen, byte* msgBack)
         }
         break;
     case eW_TX_PAYLOAD:
-        printf("%s: W_TX_PAYLOAD\n",id.c_str());
+        printf("%d: W_TX_PAYLOAD\n",id);
         write_TX_payload(msg+1,msgLen);
         break;
     case eFLUSH_TX:
-        printf("%s: COMMAND SENT: FLUSH_RX\n",id.c_str());
+        printf("%d: COMMAND SENT: FLUSH_RX\n",id);
         flush_tx();
         break;
     case eFLUSH_RX:
-        printf("%s: COMMAND SENT: FLUSH_RX\n",id.c_str());
+        printf("%d: COMMAND SENT: FLUSH_RX\n",id);
         flush_rx();
         break;
     case eR_RX_PL_WID:
-        printf("%s: COMMAND SENT: R_RX_PL_WID\n",id.c_str());
+        printf("%d: COMMAND SENT: R_RX_PL_WID\n",id);
         msgBack[0] = read_RX_payload_width();
         break;
     case eW_ACK_PAYLOAD:
-        printf("%s: COMMAND SENT: W_ACK_PAYLOAD\n",id.c_str());
+        printf("%d: COMMAND SENT: W_ACK_PAYLOAD\n",id);
         write_ack_payload(msg+1,msgLen);
         break;
     case eW_TX_PAYLOAD_NO_ACK:
-        printf("%s: COMMAND SENT: W_TX_PAYLOAD_NO_ACK\n",id.c_str());
+        printf("%d: COMMAND SENT: W_TX_PAYLOAD_NO_ACK\n",id);
         write_no_ack_payload(msg+1,msgLen);
         break;
     default:
@@ -150,7 +150,7 @@ tMsgFrame* nRF24interface::getTXpacket()
             TX_FIFO.pop();
             delete temp;
             if(i == 1)
-            {//rarannge back TX_FIFO
+            {//arrange back TX_FIFO
                 temp = TX_FIFO.front();
                 TX_FIFO.pop();
                 TX_FIFO.push(temp);
@@ -207,7 +207,7 @@ tMsgFrame* nRF24interface::read_RX_payload()
     }
     return nullptr;
 }
-void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t PID, uint8_t NP_ACK,uint8_t* Payload)
+void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, uint8_t noAckFlag ,uint8_t* Payload)
 {
     auto theFrame = new tMsgFrame;
     int i = 0;
@@ -216,12 +216,14 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t PID, 
         theFrame->Payload[i] = Payload[i];
         i++;
     }
+    //Set Radio id to ignore from ether
+    theFrame->radioId = id;
     //Set PCF payload length
     theFrame->Packet_Control_Field.Payload_length = static_cast<uint8_t>(i)  ;
     //Set NO_ACK flag to zero (request ACK);
-    theFrame->Packet_Control_Field.NP_ACK = NP_ACK;
+    theFrame->Packet_Control_Field.NO_ACK =  noAckFlag;
     //Set PID                            //76543210
-    theFrame->Packet_Control_Field.PID = PID;
+    theFrame->Packet_Control_Field.PID = pid;
     //Set Address
     theFrame->Address = Address;
     TX_FIFO.push(theFrame);
@@ -234,6 +236,7 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t PID, 
 }
 
 void nRF24interface::write_TX_payload(byte* bytes_to_write, int len)
+
 {
     if(isFIFO_TX_FULL())return;
     newFrame(0,len, 0b00000011 & PID++,0,bytes_to_write);
@@ -335,7 +338,7 @@ tMsgFrame* nRF24interface::get_ack_packet_for_pipe(uint8_t pipe)
 
 bool nRF24interface::receive_frame(tMsgFrame* theFrame, byte pipe)
 {
-    printf("%s: nRF24interface::receive_frame pipe=%u\n",id.c_str(),pipe);
+    printf("%d: nRF24interface::receive_frame pipe=%u\n",id,pipe);
     /*********check if buffer is full*******/
     if(isFIFO_RX_FULL()) 
     {
@@ -360,6 +363,7 @@ bool nRF24interface::receive_frame(tMsgFrame* theFrame, byte pipe)
     setRX_DR_IRQ();//issue irq...
     clearRX_EMPTY();
     //transmit ack
+
 
     return true;
 }

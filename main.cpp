@@ -57,14 +57,11 @@ int main(int argc, char *argv[])
 {
     Ether* ether = new Ether();
 
-    string id1="95";
-    string id2="96";
-
-    RF24* radio = new RF24(9,10,new nRF24l01plus(id1,ether));
-    RF24* radio2 = new RF24(9,10,new nRF24l01plus(id2,ether));
+    RF24* radio = new RF24(9,10,new nRF24l01plus(95,ether));
+    RF24* radio2 = new RF24(9,10,new nRF24l01plus(96,ether));
 
     radio->begin();
-    radio->setRetries(0,5);
+    radio->setRetries(5,1);
     radio->setPayloadSize(8);
     radio->openWritingPipe(0xF0F0F0F0E1);
     radio->openReadingPipe(1, 0xF0F0F0F0D2);
@@ -72,7 +69,7 @@ int main(int argc, char *argv[])
     //radio->printDetails();
 
     radio2->begin();
-    radio2->setRetries(0,5);
+    radio2->setRetries(7,0);
     radio2->setPayloadSize(8);
     radio2->openWritingPipe(0xF0F0F0F0D2);
     radio2->openReadingPipe(1, 0xF0F0F0F0E1);
