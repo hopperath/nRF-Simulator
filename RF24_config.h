@@ -18,7 +18,7 @@
 #include <cstdio>
 #include <string>
 #define _BV(x) (1<<(x))
-
+#define rf24_min(a,b) (a<b?a:b)
 
 
 #endif // __RF24_CONFIG_H__

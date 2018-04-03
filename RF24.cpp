@@ -79,7 +79,7 @@ uint8_t RF24::write_register(uint8_t reg, const uint8_t* buf, uint8_t len)
 
 uint8_t RF24::write_register(uint8_t reg, uint8_t value)
 {
-    printf("%d: RF24::write_register reg:0x%X value:0x%X\n",theNRF24l01plus->id,reg,value);
+    //printf("%d: RF24::write_register reg:0x%X value:0x%X\n",theNRF24l01plus->id,reg,value);
     byte CMDsent[3] = {(byte) (W_REGISTER|(REGISTER_MASK&reg)), value, 0};
     byte placeholder[5];
     return theNRF24l01plus->Spi_Write(CMDsent, 1, placeholder);
@@ -940,6 +940,126 @@ void RF24::disableCRC()
 void RF24::setRetries(uint8_t delay, uint8_t count)
 {
     write_register(SETUP_RETR, (delay&0xf) << ARD|(count&0xf) << ARC);
+}
+
+bool RF24::txStandBy()
+{
+
+    uint32_t timeout = millis();
+    while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
+    {
+        if (get_status()&_BV(MAX_RT))
+        {
+            write_register(STATUS, _BV(MAX_RT));
+            ce(LOW);
+            flush_tx();    //Non blocking, flush the data
+            return 0;
+        }
+    }
+
+    ce(LOW);               //Set STANDBY-I mode
+    return 1;
+}
+
+
+bool RF24::txStandBy(uint32_t timeout, bool startTx)
+{
+
+    if (startTx)
+    {
+        stopListening();
+        ce(HIGH);
+    }
+    uint32_t start = millis();
+
+    while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
+    {
+        if (get_status()&_BV(MAX_RT))
+        {
+            write_register(STATUS, _BV(MAX_RT));
+            ce(LOW);       //Set re-transmit
+            ce(HIGH);
+            if (millis() - start>=timeout)
+            {
+                ce(LOW);
+                flush_tx();
+                return 0;
+            }
+        }
+    }
+
+    ce(LOW);                   //Set STANDBY-I mode
+    return 1;
+
+}
+
+bool RF24::writeFast(const void* buf, uint8_t len, const bool multicast)
+{
+    //Block until the FIFO is NOT full.
+    //Keep track of the MAX retries and set auto-retry if seeing failures
+    //Return 0 so the user can control the retrys and set a timer or failure counter if required
+    //The radio will auto-clear everything in the FIFO as long as CE remains high
+
+    while ((get_status()&(_BV(TX_FULL))))
+    {              //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
+
+        if (get_status()&_BV(MAX_RT))
+        {
+            //reUseTX();							//Set re-transmit
+            write_register(STATUS, _BV(MAX_RT));    //Clear max retry flag
+            return 0;                               //Return 0. The previous payload has been retransmitted
+            //From the user perspective, if you get a 0, just keep trying to send the same payload
+        }
+    }
+
+    //Start Writing
+    startFastWrite(buf, len, multicast);
+
+    return 1;
+}
+
+bool RF24::writeFast(const void* buf, uint8_t len)
+{
+    return writeFast(buf, len, 0);
+}
+
+/****************************************************************************/
+
+//Per the documentation, we want to set PTX Mode when not listening. Then all we do is write data and set CE high
+//In this mode, if we can keep the FIFO buffers loaded, packets will transmit immediately (no 130us delay)
+//Otherwise we enter Standby-II mode, which is still faster than standby mode
+//Also, we remove the need to keep writing the config register over and over and delaying for 150 us each time if sending a stream of data
+
+void RF24::startFastWrite(const void* buf, uint8_t len, const bool multicast, bool startTx)
+{ //TMRh20
+
+    //write_payload( buf,len);
+    write_payload(buf, len, multicast ? W_TX_PAYLOAD_NO_ACK : W_TX_PAYLOAD);
+    if (startTx)
+    {
+        ce(HIGH);
+    }
+}
+
+uint8_t RF24::write_payload(const void* buf, uint8_t data_len, const uint8_t writeType)
+{
+    uint8_t status;
+    const uint8_t* current = reinterpret_cast<const uint8_t*>(buf);
+
+    data_len = rf24_min(data_len, payload_size);
+    uint8_t blank_len = dynamic_payloads_enabled ? 0 : payload_size - data_len;
+
+    //printf("Writing %u bytes %u blanks\n", data_len, blank_len);
+
+    byte* tempBuf = (byte*) calloc(sizeof(byte), data_len + 2);
+    byte placeholder[5];
+    memcpy(tempBuf + 1, buf, data_len);
+    tempBuf[0] = writeType;
+
+    return theNRF24l01plus->Spi_Write(tempBuf, data_len, placeholder);
+
+
+    return status;
 }
 
 // vim:ai:cin:sts=2 sw=2 ft=cpp

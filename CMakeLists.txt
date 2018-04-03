@@ -32,6 +32,9 @@ set(SOURCE_FILES
         RF24.cpp
         RF24.h
         RF24_config.h
+        RF24Network.cpp
+        RF24Network.h
+        RF24Network_config.h
         )
 add_executable(nRF_Simulator ${SOURCE_FILES})
 

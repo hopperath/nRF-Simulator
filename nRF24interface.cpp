@@ -3,7 +3,7 @@
 
 using namespace std;
 
-nRF24interface::nRF24interface():nRF24registers(),PID(0)
+nRF24interface::nRF24interface():nRF24registers(),PID(0), chip(&nRF24interface::run,this)
 {
     //ctor
 }
@@ -46,7 +46,32 @@ commands nRF24interface::get_command(byte command)
     }
 }
 
+void nRF24interface::run()
+{
+    while (true)
+    {
+        printf("running\n");
+        if (cmdAvailable)
+        {
+
+        }
+        else
+        {
+            this_thread::yield();
+            this_thread::sleep_for(chrono::milliseconds(100));
+        }
+    }
+}
+
+//Simulate SPI interface. Reads are processed in calling thread, cmds to RF24 are
+//threaded and handled by rf24mcu with the calling thread returning immediately.
+//This better simulates actual processing.
 byte nRF24interface::Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int dataMax)
+{
+
+}
+
+byte nRF24interface::_Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int dataMax)
 {
     //Original STATUS is returned on every command
     byte statusCMD = eSTATUS;
@@ -57,7 +82,7 @@ byte nRF24interface::Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int data
     byte addr = *msg & 0b00011111;
     shared_ptr<tMsgFrame> tempMsgFrame = nullptr;
 
-    printf("COMMAND SENT: 0x%x\n",*msg);
+    //printf("COMMAND SENT: 0x%x\n",*msg);
     switch(theCommand)
     {
     case eR_REGISTER:
@@ -77,7 +102,7 @@ byte nRF24interface::Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int data
         }
         break;
     case eW_REGISTER:
-        printf("COMMAND SENT: W_REGISTER\n");
+        //printf("COMMAND SENT: W_REGISTER\n");
         write_register(msg);
         break;
     case eR_RX_PAYLOAD:

@@ -3,10 +3,12 @@
 
 #include "nRF24registers.h"
 #include <queue>
+#include <thread>
 #include "msgframe.h"
 
 class nRF24interface : public nRF24registers
 {
+
     protected:
         std::shared_ptr<tMsgFrame> lastReceived;
 
@@ -16,11 +18,19 @@ class nRF24interface : public nRF24registers
         std::queue<std::shared_ptr<tMsgFrame>> TX_FIFO;
         uint8_t PID;
 
+        //Thread for RF24 processor
+        void run();
+        //std::thread chip(nRF24interface::run);
+        std::thread chip;
+        bool cmdAvailable = false;
+
     public:
         /** Default constructor */
         nRF24interface();
 
         byte Spi_Write(byte * msg, int spiMsgLen, byte* dataBack, int dataMax=0);
+        byte _Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int dataMax);
+
         //move to protected
         bool receive_frame(std::shared_ptr<tMsgFrame> theFrame, byte pipe);
 

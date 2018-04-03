@@ -6,6 +6,7 @@
 #include "nRF24l01plus.h"
 #include "RF24.h"
 #include "ether.h"
+#include "RF24Network.h"
 
 using namespace std;
 using namespace chrono;
@@ -60,33 +61,26 @@ int main(int argc, char *argv[])
 {
     Ether* ether = new Ether();
 
-    RF24* radio = new RF24(9,10,new nRF24l01plus(91,ether));
-    RF24* radio2 = new RF24(9,10,new nRF24l01plus(92,ether));
+    RF24 radio(9,10,new nRF24l01plus(91,ether));
+    RF24 radio2(9,10,new nRF24l01plus(92,ether));
+    RF24 radio3(9,10,new nRF24l01plus(93,ether));
 
-    radio->begin();
-    radio->setRetries(5,1);
-    radio->setPayloadSize(8);
-    radio->enableAckPayload();
-    radio->openWritingPipe(0xF0F0F0F0E1);
-    radio->openReadingPipe(1, 0xF0F0F0F0D2);
-    radio->stopListening();
+    RF24Network network(radio);
+    network.begin(76,00);
 
-    radio2->begin();
-    radio2->setRetries(5,1);
-    radio2->setPayloadSize(8);
-    radio2->enableAckPayload();
-    //radio2->printDetails();
-    radio2->openWritingPipe(0xF0F0F0F0D2);
-    radio2->openReadingPipe(1, 0xF0F0F0F0E1);
+    RF24Network network2(radio2);
+    network2.begin(76,01);
 
+    RF24Network network3(radio3);
+    network3.begin(76,011);
 
-    char payload2[] = "ackPayload";
-    radio2->writeAckPayload(1,payload2, sizeof(payload2));
-    radio2->startListening();
+    RF24NetworkHeader header;
+    header.from_node = 00;
+    header.to_node = 01;
+    header.type = 90;
 
-    char payload[] = "test";
-    bool ok = radio->write(payload,sizeof(payload));
-    printf("write ok=%u\n",ok);
+    char msg[]="netpayload01";
+    network.write(header,msg,sizeof(msg));
 
     auto start = steady_clock::now();
 
@@ -95,7 +89,7 @@ int main(int argc, char *argv[])
     bool timeout = false;
 
 
-    while ( !radio2->available() )
+    while ( !network2.available() )
     {
         // If waited longer than 200ms, indicate timeout and exit while loop                      // While nothing is received
         if (steady_clock::now() - started_waiting_at > RxTimeout)
@@ -115,24 +109,11 @@ int main(int argc, char *argv[])
     else
     {
         char buffer[10];
-        radio2->read(buffer,10);
-        printf("buffer=%s\n",buffer);
+        RF24NetworkHeader hdr;
+        network2.read(hdr,buffer,10);
+        printf("from %u buffer2=%s\n",hdr.from_node,buffer);
     }
 
-
-    if (radio->isAckPayloadAvailable())
-    {
-        char buffer[10];
-        radio->read(buffer,sizeof(buffer));
-        printf("ack buffer=%s\n",buffer);
-    }
-    /*
-    radio2->stopListening();
-    radio2->printDetails();
-    printf("writing");
-    radio2->write("test",5);
-    */
-    
     return 0;
 }
 
