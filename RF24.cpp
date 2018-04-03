@@ -59,7 +59,7 @@ uint8_t RF24::read_register(uint8_t reg)
     byte sentCMD[1] = {(byte) (R_REGISTER|(REGISTER_MASK&reg))};
     byte msgBack[1];
     theNRF24l01plus->Spi_Write(sentCMD, 1, msgBack);
-    //printf("%s: RF24::read_register(reg) reg: 0x%X valueBack: 0x%X\n",reg,msgBack[0], theNRF24l01plus->id.c_str());
+    //printf("%d: RF24::read_register reg:0x%X valueBack: 0x%X\n",theNRF24l01plus->id,reg,msgBack[0]);
     return msgBack[0];
 }
 
@@ -79,7 +79,7 @@ uint8_t RF24::write_register(uint8_t reg, const uint8_t* buf, uint8_t len)
 
 uint8_t RF24::write_register(uint8_t reg, uint8_t value)
 {
-    //printf("%s: RF24::write_register(reg,value) reg: 0x%X value: 0x%X\n",reg,value,theNRF24l01plus->id.c_str());
+    printf("%d: RF24::write_register reg:0x%X value:0x%X\n",theNRF24l01plus->id,reg,value);
     byte CMDsent[3] = {(byte) (W_REGISTER|(REGISTER_MASK&reg)), value, 0};
     byte placeholder[5];
     return theNRF24l01plus->Spi_Write(CMDsent, 1, placeholder);
@@ -102,7 +102,7 @@ uint8_t RF24::write_payload(const void* buf, uint8_t len)
 uint8_t RF24::read_payload(void* buf, uint8_t len)
 {
     byte CMDsent[2] = {R_RX_PAYLOAD, 0};
-    return theNRF24l01plus->Spi_Write(CMDsent, 1, (byte*) buf);
+    return theNRF24l01plus->Spi_Write(CMDsent, 1, (byte*) buf, len);
 }
 
 /****************************************************************************/
@@ -216,6 +216,7 @@ void RF24::setPayloadSize(uint8_t size)
 {
     const uint8_t max_payload_size = 32;
     payload_size = std::min(size, max_payload_size);
+    enableDynamicPayloads();
 }
 
 /****************************************************************************/
@@ -286,7 +287,7 @@ void RF24::printDetails(void)
 
 /****************************************************************************/
 
-void RF24::begin(void)
+void RF24::begin()
 {
 
     ce(LOW);
@@ -343,7 +344,7 @@ void RF24::begin(void)
 
 /****************************************************************************/
 
-void RF24::startListening(void)
+void RF24::startListening()
 {
     write_register(CONFIG, read_register(CONFIG)|_BV(PWR_UP)|_BV(PRIM_RX));
     write_register(STATUS, _BV(RX_DR)|_BV(TX_DS)|_BV(MAX_RT));
@@ -393,7 +394,6 @@ void RF24::powerUp(void)
 bool RF24::write(const void* buf, uint8_t len)
 {
     printf("%d RF24::write len=%u\n", theNRF24l01plus->id, len);
-    bool result = false;
 
     // Begin the write
     startWrite(buf, len);
@@ -420,6 +420,7 @@ bool RF24::write(const void* buf, uint8_t len)
     }
     while (!(status&(_BV(TX_DS)|_BV(MAX_RT))) && (millis() - sent_at<timeout));
 
+    printf("%u: write time=%u\n",theNRF24l01plus->id,millis()-sent_at);
     // The part above is what you could recreate with your own interrupt handler,
     // and then call this when you got an interrupt
     // ------------
@@ -433,8 +434,6 @@ bool RF24::write(const void* buf, uint8_t len)
     whatHappened(tx_ok, tx_fail, ack_payload_available);
 
     //printf("%u%u%u\r\n",tx_ok,tx_fail,ack_payload_available);
-
-    result = tx_ok;
 
     // Handle the ack packet
     if (ack_payload_available)
@@ -450,7 +449,7 @@ bool RF24::write(const void* buf, uint8_t len)
     // Flush buffers (Is this a relic of past experimentation, and not needed anymore??)
     flush_tx();
 
-    return result;
+    return tx_ok;
 }
 /****************************************************************************/
 
@@ -471,7 +470,7 @@ void RF24::startWrite(const void* buf, uint8_t len)
 
 /****************************************************************************/
 
-uint8_t RF24::getDynamicPayloadSize(void)
+uint8_t RF24::getDynamicPayloadSize()
 {
     byte sentCMD[2] = {R_RX_PL_WID, 0};
     byte msgBack[1];
@@ -481,9 +480,9 @@ uint8_t RF24::getDynamicPayloadSize(void)
 
 /****************************************************************************/
 
-bool RF24::available(void)
+bool RF24::available()
 {
-    return available(NULL);
+    return available(nullptr);
 }
 
 /****************************************************************************/
@@ -537,6 +536,7 @@ bool RF24::read(void* buf, uint8_t len)
 
 void RF24::whatHappened(bool& tx_ok, bool& tx_fail, bool& rx_ready)
 {
+
     // Read the status & reset the status in one easy call
     // Or is that such a good idea?
     uint8_t status = write_register(STATUS, _BV(RX_DR)|_BV(TX_DS)|_BV(MAX_RT));
@@ -545,6 +545,8 @@ void RF24::whatHappened(bool& tx_ok, bool& tx_fail, bool& rx_ready)
     tx_ok = status&_BV(TX_DS);
     tx_fail = status&_BV(MAX_RT);
     rx_ready = status&_BV(RX_DR);
+
+    printf("%d: whatHappened txOk=%u, txFail=%u, rxReady=%u\n",theNRF24l01plus->id,tx_ok,tx_fail,rx_ready);
 }
 
 /****************************************************************************/
@@ -613,7 +615,7 @@ void RF24::openReadingPipe(uint8_t child, uint64_t address)
 
 /****************************************************************************/
 
-void RF24::toggle_features(void)
+void RF24::toggle_features()
 {
     byte sentCMD[3] = {ACTIVATE, 0x73, 0};
     byte msgBack[1];
@@ -622,7 +624,7 @@ void RF24::toggle_features(void)
 
 /****************************************************************************/
 
-void RF24::enableDynamicPayloads(void)
+void RF24::enableDynamicPayloads()
 {
     // Enable dynamic payload throughout the system
     write_register(FEATURE, read_register(FEATURE)|_BV(EN_DPL));
@@ -646,7 +648,7 @@ void RF24::enableDynamicPayloads(void)
 
 /****************************************************************************/
 
-void RF24::enableAckPayload(void)
+void RF24::enableAckPayload()
 {
     //
     // enable ack payload and dynamic payload features
@@ -673,6 +675,7 @@ void RF24::enableAckPayload(void)
 
 void RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
 {
+    printf("%d: writeAckPayload pipe=%u\n",theNRF24l01plus->id,pipe);
     byte* tempBuf = (byte*) calloc(sizeof(byte), len + 2);
     byte placeholder[5];
     memcpy(tempBuf + 1, buf, len);
@@ -683,8 +686,9 @@ void RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
 
 /****************************************************************************/
 
-bool RF24::isAckPayloadAvailable(void)
+bool RF24::isAckPayloadAvailable()
 {
+    printf("%u, isAckPayloadAvailable=%u\n",theNRF24l01plus->id,ack_payload_available);
     bool result = ack_payload_available;
     ack_payload_available = false;
     return result;
@@ -692,7 +696,7 @@ bool RF24::isAckPayloadAvailable(void)
 
 /****************************************************************************/
 
-bool RF24::isPVariant(void)
+bool RF24::isPVariant()
 {
     return p_variant;
 }
@@ -732,14 +736,14 @@ void RF24::setAutoAck(uint8_t pipe, bool enable)
 
 /****************************************************************************/
 
-bool RF24::testCarrier(void)
+bool RF24::testCarrier()
 {
     return (read_register(CD)&1);
 }
 
 /****************************************************************************/
 
-bool RF24::testRPD(void)
+bool RF24::testRPD()
 {
     return (read_register(RPD)&1);
 }
@@ -779,7 +783,7 @@ void RF24::setPALevel(rf24_pa_dbm_e level)
 
 /****************************************************************************/
 
-rf24_pa_dbm_e RF24::getPALevel(void)
+rf24_pa_dbm_e RF24::getPALevel()
 {
     rf24_pa_dbm_e result = RF24_PA_ERROR;
     uint8_t power = read_register(RF_SETUP)&(_BV(RF_PWR_LOW)|_BV(RF_PWR_HIGH));
@@ -854,7 +858,7 @@ bool RF24::setDataRate(rf24_datarate_e speed)
 
 /****************************************************************************/
 
-rf24_datarate_e RF24::getDataRate(void)
+rf24_datarate_e RF24::getDataRate()
 {
     rf24_datarate_e result;
     uint8_t dr = read_register(RF_SETUP)&(_BV(RF_DR_LOW)|_BV(RF_DR_HIGH));
@@ -904,7 +908,7 @@ void RF24::setCRCLength(rf24_crclength_e length)
 
 /****************************************************************************/
 
-rf24_crclength_e RF24::getCRCLength(void)
+rf24_crclength_e RF24::getCRCLength()
 {
     rf24_crclength_e result = RF24_CRC_DISABLED;
     uint8_t config = read_register(CONFIG)&(_BV(CRCO)|_BV(EN_CRC));
@@ -926,7 +930,7 @@ rf24_crclength_e RF24::getCRCLength(void)
 
 /****************************************************************************/
 
-void RF24::disableCRC(void)
+void RF24::disableCRC()
 {
     uint8_t disable = read_register(CONFIG)&~_BV(EN_CRC);
     write_register(CONFIG, disable);

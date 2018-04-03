@@ -1,16 +1,11 @@
 #include "nRF24interface.h"
 #include <stdio.h>
-#include <string.h>
 
+using namespace std;
 
-nRF24interface::nRF24interface():nRF24registers(),sREUSE_TX_PL(false),lastTransmited(nullptr),PID(0)
+nRF24interface::nRF24interface():nRF24registers(),PID(0)
 {
     //ctor
-}
-
-nRF24interface::~nRF24interface()
-{
-    //dtor
 }
 
 commands nRF24interface::get_command(byte command)
@@ -36,6 +31,7 @@ commands nRF24interface::get_command(byte command)
     default:
         break;
     }
+
     byte three_most_significant_bits = command >> 5;
     switch(three_most_significant_bits)
     {
@@ -43,38 +39,45 @@ commands nRF24interface::get_command(byte command)
         return eR_REGISTER;
     case 0b001://W_REGISTER
         return eW_REGISTER;
-    case 101://W_ACK_PAYLOAD
+    case 0b101://W_ACK_PAYLOAD
         return eW_ACK_PAYLOAD;
     default:
         return eNOP;
     }
 }
 
-byte nRF24interface::Spi_Write(byte* msg,int msgLen, byte* msgBack)
+byte nRF24interface::Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int dataMax)
 {
-    //identify the command from the first byte
-    byte* read_reg;
-    commands theCommand = get_command(msg[0]);
-    byte addr = msg[0] & 0b00011111;
-    tMsgFrame* tempMsgFrame = nullptr;
+    //Original STATUS is returned on every command
+    byte statusCMD = eSTATUS;
+    byte status = *read_register(&statusCMD);
 
-    //printf("\n\nCOMMAND SENT: %X",msg[0]);
+    //identify the command from the first byte
+    commands theCommand = get_command(*msg);
+    byte addr = *msg & 0b00011111;
+    shared_ptr<tMsgFrame> tempMsgFrame = nullptr;
+
+    printf("COMMAND SENT: 0x%x\n",*msg);
     switch(theCommand)
     {
     case eR_REGISTER:
         //printf("\n\nCOMMAND SENT: R_REGISTER");
+        byte* read_reg;
         read_reg = read_register(msg); //load the register into temp read_reg
-        if(read_reg == nullptr)break;
-        msgBack[0]=read_reg[0];
+        if(read_reg == nullptr)
+        {
+            break;
+        }
+        *dataBack=*read_reg;
         //printf("\nREAD: 0x%X",msgBack[0]);
         if( (addr == eRX_ADDR_P0) || (addr == eRX_ADDR_P1) || addr == eTX_ADDR)
         {
-            *((uint64_t*)(msgBack)) = *((uint64_t*)read_reg);
+            *((uint64_t*)(dataBack)) = *((uint64_t*)read_reg);
             //printf("\n0x%llX\n",*((uint64_t*)msgBack));
         }
         break;
     case eW_REGISTER:
-        //printf("\n\nCOMMAND SENT: W_REGISTER");
+        printf("COMMAND SENT: W_REGISTER\n");
         write_register(msg);
         break;
     case eR_RX_PAYLOAD:
@@ -82,16 +85,22 @@ byte nRF24interface::Spi_Write(byte* msg,int msgLen, byte* msgBack)
         tempMsgFrame = read_RX_payload();
         if(tempMsgFrame != nullptr)
         {
-            memcpy(msgBack,tempMsgFrame->Payload,tempMsgFrame->Packet_Control_Field.Payload_length);
-            delete tempMsgFrame;
+            if (tempMsgFrame->Packet_Control_Field.Payload_length<=dataMax)
+            {
+                memcpy(dataBack, tempMsgFrame->Payload, tempMsgFrame->Packet_Control_Field.Payload_length);
+            }
+            else
+            {
+                memcpy(dataBack, tempMsgFrame->Payload, dataMax);
+            }
         }
         break;
     case eW_TX_PAYLOAD:
         printf("%d: W_TX_PAYLOAD\n",id);
-        write_TX_payload(msg+1,msgLen);
+        write_TX_payload(msg+1,spiMsgLen);
         break;
     case eFLUSH_TX:
-        printf("%d: COMMAND SENT: FLUSH_RX\n",id);
+        printf("%d: COMMAND SENT: FLUSH_TX\n",id);
         flush_tx();
         break;
     case eFLUSH_RX:
@@ -100,56 +109,47 @@ byte nRF24interface::Spi_Write(byte* msg,int msgLen, byte* msgBack)
         break;
     case eR_RX_PL_WID:
         printf("%d: COMMAND SENT: R_RX_PL_WID\n",id);
-        msgBack[0] = read_RX_payload_width();
+        dataBack[0] = read_RX_payload_width();
         break;
     case eW_ACK_PAYLOAD:
         printf("%d: COMMAND SENT: W_ACK_PAYLOAD\n",id);
-        write_ack_payload(msg+1,msgLen);
+        write_ack_payload(msg+1,spiMsgLen);
         break;
     case eW_TX_PAYLOAD_NO_ACK:
         printf("%d: COMMAND SENT: W_TX_PAYLOAD_NO_ACK\n",id);
-        write_no_ack_payload(msg+1,msgLen);
+        write_no_ack_payload(msg+1,spiMsgLen);
         break;
-    default:
     case eNOP:
+    default:
         break;
     }
-    byte statusCMD = eSTATUS;
-    read_reg = read_register(&statusCMD);
-    //printf("STATUS: %X\n",read_reg[0]);
-    return read_reg[0];
+    printf("STATUS: 0x%x\n",status);
+    return status;
 }
 
 uint8_t nRF24interface::read_RX_payload_width()
 {
-    if(isFIFO_RX_EMTPY())return 0;
-    tMsgFrame* temp = RX_FIFO.front();
+    if(isFIFO_RX_EMTPY())
+    {
+        return 0;
+    }
+    shared_ptr<tMsgFrame> temp = RX_FIFO.front();
 
     return temp->Packet_Control_Field.Payload_length;
 }
 
-tMsgFrame* nRF24interface::getTXpacket()
+void nRF24interface::removeTXPacket(shared_ptr<tMsgFrame> msgFrame)
 {
-    if(sREUSE_TX_PL == true)
-    {//resend last packet
-        sREUSE_TX_PL = false;
-        return lastTransmited;
-    }
-    if(TX_FIFO.empty() == true)return nullptr; //nothing to send
-    tMsgFrame* frameToReturn = nullptr;
-    tMsgFrame* temp;
+    shared_ptr<tMsgFrame> temp;
+    auto sizeOfTXfifo = TX_FIFO.size();
     int i = 0;
-    int sizeOfTXfifo = TX_FIFO.size();
-    while(i++ < sizeOfTXfifo)
+    while (i++<sizeOfTXfifo)
     {
-        if( (tMsgFrame*)(TX_FIFO.front())->Address == 0 )
+        if (TX_FIFO.front()==msgFrame)
         {
-            frameToReturn = new tMsgFrame;
-            memcpy(frameToReturn,TX_FIFO.front(),sizeof(tMsgFrame));
-            temp = TX_FIFO.front();
             TX_FIFO.pop();
-            delete temp;
-            if(i == 1)
+
+            if (i==1)
             {//arrange back TX_FIFO
                 temp = TX_FIFO.front();
                 TX_FIFO.pop();
@@ -157,59 +157,86 @@ tMsgFrame* nRF24interface::getTXpacket()
             }
             //if tx fifo was full size = 3
             //remove full flag
-            if(sizeOfTXfifo == 3)
+            if (sizeOfTXfifo==3)
             {
                 clearTX_FULL_IRQ();
                 clearTX_FULL();
             }
             //if tx fifo only had one size = 1
             //set the tx fifo empty flag
-            if(sizeOfTXfifo == 1)
+            if (sizeOfTXfifo==1)
             {
                 setTX_EMPTY();
             }
-            return frameToReturn;
+        }
+
+        //Push to back
+        temp = TX_FIFO.front();
+        TX_FIFO.pop();
+        TX_FIFO.push(temp);
+    }
+}
+
+shared_ptr<tMsgFrame> nRF24interface::getTXpacket(uint64_t address)
+{
+    printf("%u: getTXPacket looking for addr=0x%llx\n",id,address);
+    if(TX_FIFO.empty() == true)
+    {
+        return nullptr; //nothing to send
+    }
+
+    int i = 0;
+    auto sizeOfTXfifo = static_cast<int>(TX_FIFO.size());
+
+    shared_ptr<tMsgFrame> temp;
+    while(i++ < sizeOfTXfifo)
+    {
+        if( TX_FIFO.front()->Address == address )
+        {
+            printf("%u: getTXPacket found addr=0x%llx\n",id,address);
+            return TX_FIFO.front();
         }
         temp = TX_FIFO.front();
         TX_FIFO.pop();
         TX_FIFO.push(temp);
     }
-    //arrange back TX FIFO
-    temp = TX_FIFO.front();
-    TX_FIFO.pop();
-    TX_FIFO.push(temp);
+
     return nullptr;
 }
 
-tMsgFrame* nRF24interface::read_RX_payload()
+shared_ptr<tMsgFrame> nRF24interface::read_RX_payload()
 {
-    if(isRX_MODE())
+    if(isRX_MODE() || (isACKPayloadEnabled() && isDynamicPayloadEnabled()))
     {
-        if(RX_FIFO.empty())return nullptr;
+        if(RX_FIFO.empty())
+        {
+            return nullptr;
+        }
+
         //Not empty
-        tMsgFrame* frontToDel = RX_FIFO.front();
-        auto temp = new tMsgFrame;
-        memcpy(temp,frontToDel,sizeof(tMsgFrame) );
+        shared_ptr<tMsgFrame> front = RX_FIFO.front();
         RX_FIFO.pop();
-        delete frontToDel;
+
         if(RX_FIFO.empty())
         {
             setRX_EMPTY();
             setRX_P_NO(7);//empty
         }
         else
-        {//still has frames in FIFO change waiting pipe
-            temp = RX_FIFO.front();
+        {
+            //still has frames in FIFO change waiting pipe
+            auto temp = RX_FIFO.front();
             setRX_P_NO( addressToPipe(temp->Address) );
         }
         clearRX_FULL();
-        return temp;
+        return front;
     }
     return nullptr;
 }
+
 void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, uint8_t noAckFlag ,uint8_t* Payload)
 {
-    auto theFrame = new tMsgFrame;
+    auto theFrame = shared_ptr<tMsgFrame>(new tMsgFrame);
     int i = 0;
     while( (i < (PayLength)) && (i < 32) )
     {//writes all the bytes into the payload
@@ -227,6 +254,8 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, 
     //Set Address
     theFrame->Address = Address;
     TX_FIFO.push(theFrame);
+
+    printf("%u: newFrame push addr=0x%llx, len=%u, pid=%u, noAck=%u\n", id,Address, PayLength,pid,noAckFlag);
     clearTX_EMPTY();
     if(TX_FIFO.size() == 3)
     {
@@ -235,32 +264,46 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, 
     }
 }
 
+uint8_t nRF24interface::nextPID()
+{
+    return static_cast<uint8_t>(0b00000011) & PID++;
+}
+
 void nRF24interface::write_TX_payload(byte* bytes_to_write, int len)
 
 {
     if(isFIFO_TX_FULL())return;
-    newFrame(0,len, 0b00000011 & PID++,0,bytes_to_write);
-    sREUSE_TX_PL = false;
+    newFrame(0,len,nextPID(),0,bytes_to_write);
 }
 
 void nRF24interface::write_no_ack_payload(byte* bytes_to_write, int len)
 {
     if(!isDynamicACKEnabled())return;
     if(isFIFO_TX_FULL())return;
-    newFrame(0,len, 0b00000011 & PID++,1,bytes_to_write);
+    newFrame(0,len, nextPID(),1,bytes_to_write);
 }
 
 void nRF24interface::write_ack_payload(byte* bytes_to_write, int len)
 {
     //check if tx fifo is full
-    if(isFIFO_TX_FULL() == 1)return;
+    if(isFIFO_TX_FULL() == 1)
+    {
+        return;
+    }
     //check if Dynamic Payload is enabled
-    if(isDynamicPayloadEnabled() == 0) return;
+    if(isDynamicPayloadEnabled() == 0)
+    {
+        return;
+    }
 
-    byte pipe = bytes_to_write[0] & 0b00000111; //3 lsb bist are the pype;
+    byte pipe = bytes_to_write[0] & static_cast<uint8_t>(0b00000111); //3 lsb bist are the pype;
 
     uint64_t ACK_address = getAddressFromPipe(pipe);
-    if(ACK_address == 0 )return;
+    if(ACK_address == 0 )
+    {
+        printf("%u: No address for pipe %u",id,pipe);
+        return;
+    }
 
     newFrame(ACK_address,len,0,1,bytes_to_write);
 }
@@ -269,11 +312,10 @@ void nRF24interface::flush_rx()
 {/*****check if device is in RX mode*/
     if(isRX_MODE() == 1)
     {
-        while(RX_FIFO.size())
+        while(!RX_FIFO.empty())
         {
-            tMsgFrame* temp = RX_FIFO.front();
+            auto temp = RX_FIFO.front();
             RX_FIFO.pop();
-            delete temp;
         }
         setRX_EMPTY();
         clearRX_FULL();
@@ -284,61 +326,58 @@ void nRF24interface::flush_tx()
 {/********chec if device is in TX mode*******************/
     if(isRX_MODE() == 0)
     {
-        while(TX_FIFO.size())
+        while(!TX_FIFO.empty())
         {
-            tMsgFrame* temp = TX_FIFO.front();
             TX_FIFO.pop();
-            delete temp;
         }
         clearTX_FULL();
         setTX_EMPTY();
         clearTX_FULL_IRQ();
-        delete lastTransmited;
-        sREUSE_TX_PL = false;
     }
 }
-void nRF24interface::reuse_last_transmited_payload()
-{
-    sREUSE_TX_PL = true;
-}
 
-tMsgFrame* nRF24interface::get_ack_packet_for_pipe(uint8_t pipe)
+shared_ptr<tMsgFrame> nRF24interface::getAckPacketForPipe(uint8_t pipe)
 {
+
+    printf("%d: nRF24interface::getAckPacketForPipe pipe=%u DYN_PAY=%u ACK_PAY=%u\n", id, pipe,
+           isDynamicPayloadEnabled(),isACKPayloadEnabled());
     //feature not enabled
-    if(!isDynamicACKEnabled()) return nullptr;
-    //No ACK payload saved in TX fifo (tx fifo empty)
-    if(isFIFO_TX_EMPTY()) 
+    if(isDynamicPayloadEnabled() && isACKPayloadEnabled() )
     {
-        return nullptr;
-    }
-    //
-    uint64_t pipe_address = getAddressFromPipe_ENAA(pipe);
-    if(pipe_address == 0)
-    {
-        return nullptr;
-    }
-    //test address loaded, check through TX fifo for a match.
-    tMsgFrame* the_ack_payload = nullptr;
-    for(uint8_t i = 0; i < TX_FIFO.size(); i++)
-    {
-        tMsgFrame* temp = TX_FIFO.front();
-        //checking code here
-        if(pipe_address == temp->Address)
-        {//only load first
-            if(the_ack_payload == nullptr)
-            {
-                the_ack_payload = temp;
-            }
+        uint64_t pipe_address = getAddressFromPipe_ENAA(pipe);
+        printf("%d: nRF24interface::pipe addr=0x%llx\n",id,pipe_address);
+        if (pipe_address==0)
+        {
+            return nullptr;
         }
-        TX_FIFO.pop();
-        TX_FIFO.push(temp);
+
+        return getTXpacket(pipe_address);
     }
-    return the_ack_payload;
+    return nullptr;
 }
 
-bool nRF24interface::receive_frame(tMsgFrame* theFrame, byte pipe)
+bool nRF24interface::receive_frame(shared_ptr<tMsgFrame> theFrame, byte pipe)
 {
     printf("%d: nRF24interface::receive_frame pipe=%u\n",id,pipe);
+
+
+    //Check for duplicate
+    if (lastReceived)
+    {
+        if ( lastReceived->Address == theFrame->Address &&
+             lastReceived->Packet_Control_Field.PID == theFrame->Packet_Control_Field.PID &&
+             lastReceived->Packet_Control_Field.Payload_length == theFrame->Packet_Control_Field.Payload_length &&
+             memcmp(lastReceived->Payload,theFrame->Payload,lastReceived->Packet_Control_Field.Payload_length) == 0
+            )
+        {
+            //Dupe
+            printf("%d: nRF24interface::dupe frame receive_frame pipe=%u\n",id,pipe);
+            return false;
+        }
+        lastReceived = theFrame;
+    }
+
+
     /*********check if buffer is full*******/
     if(isFIFO_RX_FULL()) 
     {
@@ -346,14 +385,13 @@ bool nRF24interface::receive_frame(tMsgFrame* theFrame, byte pipe)
     }
 
     /***Receive the frame***/
-    auto newFrame = new tMsgFrame;
-    memcpy(newFrame,theFrame,sizeof(tMsgFrame));
     /********push into RX FIFO*******/
     if(isFIFO_RX_EMTPY())
     {
         setRX_P_NO(pipe);
     }
-    RX_FIFO.push(newFrame);
+    printf("%d: nRF24interface::push rx_frame\n",id);
+    RX_FIFO.push(theFrame);
 
     if(RX_FIFO.size() == 3)
     {
@@ -362,8 +400,21 @@ bool nRF24interface::receive_frame(tMsgFrame* theFrame, byte pipe)
 
     setRX_DR_IRQ();//issue irq...
     clearRX_EMPTY();
-    //transmit ack
-
 
     return true;
 }
+
+uint16_t nRF24interface::crc16(const unsigned char* data_p, uint8_t length)
+{
+    uint8_t x;
+    uint16_t crc = 0xFFFF;
+
+    while (length--)
+    {
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x <<5)) ^ ((uint16_t)x);
+    }
+    return crc;
+}
+

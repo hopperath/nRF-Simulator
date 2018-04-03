@@ -22,6 +22,7 @@ class nRF24registers
         void setCE_HIGH();
         void setCE_LOW(){printf("%d: setCE_LOW\n",id); CE = false;}
         bool getCE(){return CE;}
+
     protected:
         byte * read_register(byte * read_command);
         void write_register(byte * bytes_to_write);
@@ -31,6 +32,7 @@ class nRF24registers
         uint8_t getARD(){return REGISTERS.sSETUP_RETR.sARD;}
         uint8_t getARC(){return REGISTERS.sSETUP_RETR.sARC;}
         uint64_t getTXaddress();
+        bool isACKPayloadEnabled(){return REGISTERS.sFEATURE.sEN_ACK_PAY;}
         bool isDynamicACKEnabled(){return REGISTERS.sFEATURE.sEN_DYN_ACK;}
         bool isDynamicPayloadEnabled(){return REGISTERS.sFEATURE.sEN_DPL;}
         bool isFIFO_TX_EMPTY(){return REGISTERS.sFIFO_STATUS.sTX_EMPTY;}
@@ -62,9 +64,11 @@ class nRF24registers
         uint8_t getARC_CNT(){return REGISTERS.sOBSERVE_TX.sARC_CNT;}
         void setRX_P_NO(byte pipe){REGISTERS.sSTATUS.sRX_P_NO = pipe;}
         void printBin(byte toPrint);
+
+
     private:
         tREGISTERS REGISTERS;
-        void * register_array[0x1E];
+        void* register_array[0x1E];
         bool CE;
 
     //signals

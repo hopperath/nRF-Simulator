@@ -48,7 +48,10 @@ void printBin(byte toPrint)
     while(--i>=0)
     {
         printf("%d",(toPrint & 0b10000000)>>7 );
-        if(i==4)printf(" ");
+        if(i==4)
+        {
+            printf(" ");
+        }
         toPrint<<=1;
     }
 }
@@ -57,27 +60,33 @@ int main(int argc, char *argv[])
 {
     Ether* ether = new Ether();
 
-    RF24* radio = new RF24(9,10,new nRF24l01plus(95,ether));
-    RF24* radio2 = new RF24(9,10,new nRF24l01plus(96,ether));
+    RF24* radio = new RF24(9,10,new nRF24l01plus(91,ether));
+    RF24* radio2 = new RF24(9,10,new nRF24l01plus(92,ether));
 
     radio->begin();
     radio->setRetries(5,1);
     radio->setPayloadSize(8);
+    radio->enableAckPayload();
     radio->openWritingPipe(0xF0F0F0F0E1);
     radio->openReadingPipe(1, 0xF0F0F0F0D2);
     radio->stopListening();
-    //radio->printDetails();
 
     radio2->begin();
-    radio2->setRetries(7,0);
+    radio2->setRetries(5,1);
     radio2->setPayloadSize(8);
+    radio2->enableAckPayload();
+    //radio2->printDetails();
     radio2->openWritingPipe(0xF0F0F0F0D2);
     radio2->openReadingPipe(1, 0xF0F0F0F0E1);
 
+
+    char payload2[] = "ackPayload";
+    radio2->writeAckPayload(1,payload2, sizeof(payload2));
     radio2->startListening();
 
     char payload[] = "test";
-    radio->write("test",sizeof(payload));
+    bool ok = radio->write(payload,sizeof(payload));
+    printf("write ok=%u\n",ok);
 
     auto start = steady_clock::now();
 
@@ -107,9 +116,16 @@ int main(int argc, char *argv[])
     {
         char buffer[10];
         radio2->read(buffer,10);
-        printf("buffer=%s",buffer);
+        printf("buffer=%s\n",buffer);
     }
 
+
+    if (radio->isAckPayloadAvailable())
+    {
+        char buffer[10];
+        radio->read(buffer,sizeof(buffer));
+        printf("ack buffer=%s\n",buffer);
+    }
     /*
     radio2->stopListening();
     radio2->printDetails();

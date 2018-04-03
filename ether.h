@@ -10,6 +10,9 @@
 class Ether
 {
     private:
+        //TODO: Simulate lost packets
+        //int packetLossPercent;
+
         //This is thread based
         Poco::Mutex mutex;
         bool locked = false;

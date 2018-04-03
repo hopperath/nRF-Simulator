@@ -100,7 +100,7 @@ nRF24registers::~nRF24registers()
 
 void nRF24registers::setCE_HIGH()
 {
-    printf("%d: setCE_HIGH\n",id);
+    printf("%d: setCE_HIGH\n", id);
     CE = true;
     //was signal
     CEsetHIGH();
@@ -165,17 +165,18 @@ void nRF24registers::write_register(byte* bytes_to_write)
             where_to_write[0] = bytes_to_write[1];
         }
         else
-        {//write to STATUS.. bits are cleared by writing 1 pm the,///
+        {
+            //write to STATUS.. bits are cleared by writing 1 pm the,///
             temp = bytes_to_write[1]&0b01110000; //clears bit that cant be written to
             temp = ~temp; //inverts all, 0 become 1 and  leaves those bits alone after AND op,  where 1s are bits will get cleared after AND operation
             where_to_write[0] &= temp;
         }
-        //printf("byte to write[1]: 0x%02x  ",bytes_to_write[1]);
-        //printf("where to write[0]: 0x%02x\n",where_to_write[0]);
+        //printf("byte to write[1]: 0x%02x  ", bytes_to_write[1]);
+        //printf("where to write[0]: 0x%02x\n", where_to_write[0]);
         if ((addr==eRX_ADDR_P0) || (addr==eRX_ADDR_P1) || (addr==eTX_ADDR))
         {
             *((uint64_t*) where_to_write) = *((uint64_t*) (bytes_to_write + 1));
-            //printf("written: %llx\n", *((uint64_t*)where_to_write) );
+            //printf("written: %llx\n", *((uint64_t*) where_to_write));
         }
     }
     if (emitTXmodeSignal==true)
@@ -192,7 +193,7 @@ void nRF24registers::write_register(byte* bytes_to_write)
 
 uint64_t nRF24registers::getTXaddress()
 {
-    printf("%d: TX addr=%llx\n",id, *((uint64_t*) register_array[eTX_ADDR]));
+    printf("%d: TX addr=%llx\n", id, *((uint64_t*) register_array[eTX_ADDR]));
     return *((uint64_t*) register_array[eTX_ADDR]);
 }
 
@@ -329,21 +330,33 @@ uint64_t nRF24registers::getAddressFromPipe(byte pipe)
     {
         case 0:
             if (REGISTERS.sEN_RXADDR.sERX_P0)
-            { ACK_address = *((uint64_t*) register_array[eRX_ADDR_P0]); }
+            {
+                ACK_address = *((uint64_t*) register_array[eRX_ADDR_P0]);
+            }
             else
-            { return 0; }//PO RX not enabled
+            {
+                return 0;
+            }//PO RX not enabled
             break;
         case 1:
             if (REGISTERS.sEN_RXADDR.sERX_P1)
-            { ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]); }
+            {
+                ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]);
+            }
             else
-            { return 0; }//P1 RX not enabled
+            {
+                return 0;
+            }//P1 RX not enabled
             break;
         case 2:
             if (REGISTERS.sEN_RXADDR.sERX_P2)
-            { ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]); }
+            {
+                ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]);
+            }
             else
-            { return 0; }//P2 RX not enabled
+            {
+                return 0;
+            }//P2 RX not enabled
             temp64 = (uint64_t) (*((uint8_t*) (register_array[eRX_ADDR_P2])));
             ACK_address &= 0xFFFFFF00;
             temp64 &= 0x000000FF;
@@ -351,9 +364,13 @@ uint64_t nRF24registers::getAddressFromPipe(byte pipe)
             break;
         case 3:
             if (REGISTERS.sEN_RXADDR.sERX_P3)
-            { ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]); }
+            {
+                ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]);
+            }
             else
-            { return 0; }//P3 RX not enabled
+            {
+                return 0;
+            }//P3 RX not enabled
             temp64 = (uint64_t) (*((uint8_t*) (register_array[eRX_ADDR_P3])));
             ACK_address &= 0xFFFFFF00;
             temp64 &= 0x000000FF;
@@ -361,9 +378,13 @@ uint64_t nRF24registers::getAddressFromPipe(byte pipe)
             break;
         case 4:
             if (REGISTERS.sEN_RXADDR.sERX_P4)
-            { ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]); }
+            {
+                ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]);
+            }
             else
-            { return 0; }//P4 RX not enabled
+            {
+                return 0;
+            }//P4 RX not enabled
             temp64 = (uint64_t) (*((uint8_t*) (register_array[eRX_ADDR_P4])));
             ACK_address &= 0xFFFFFF00;
             temp64 &= 0x000000FF;
@@ -371,9 +392,13 @@ uint64_t nRF24registers::getAddressFromPipe(byte pipe)
             break;
         case 5:
             if (REGISTERS.sEN_RXADDR.sERX_P5)
-            { ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]); }
+            {
+                ACK_address = *((uint64_t*) register_array[eRX_ADDR_P1]);
+            }
             else
-            { return 0; }//P5 RX not enabled
+            {
+                return 0;
+            }//P5 RX not enabled
             temp64 = (uint64_t) (*((uint8_t*) (register_array[eRX_ADDR_P5])));
             ACK_address &= 0xFFFFFF00;
             temp64 &= 0x000000FF;

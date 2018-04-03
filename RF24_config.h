@@ -11,12 +11,12 @@
 #define __RF24_CONFIG_H__
 
 
-#include <stddef.h>
+#include <cstddef>
 
 // Stuff that is normally provided by Arduino
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <string>
 #define _BV(x) (1<<(x))
 
 
