@@ -26,13 +26,32 @@ class nRF24l01plus : public nRF24interface
         //Poco::TimerCallback<nRF24l01plus>* noACKalarmCallback;
         std::unique_ptr<Poco::TimerCallback<nRF24l01plus>> noACKalarmCallback;
 
+        //Thread for RF24 processor
+        void runRF24();
+        //std::thread chip(nRF24interface::run);
+        std::thread chip;
+        std::condition_variable cmdAvailable;
+        std::mutex m;
+
+    protected:
+        static const int IDLE = 0;
+        static const int PTX = 1;
+        static const int PRX = 2;
+
+        int pendingCmd = 0;
+
+        void cmdNotify(int cmd);
+        void processCmd();
 
     public:
         explicit nRF24l01plus(int id, Ether* someEther = nullptr);
 
     protected:
+        std::shared_ptr<tMsgFrame> rxMsg;
+
     private:
         void startPTX();
+        void startPRX();
         void ackReceived(std::shared_ptr<tMsgFrame> theMSG, byte pipe);
 
         void CEsetHIGH() override ;

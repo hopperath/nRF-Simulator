@@ -6,7 +6,7 @@ using namespace std;
 using namespace Poco;
 
 //constructor
-nRF24l01plus::nRF24l01plus(int id, Ether* someEther) : theEther(someEther)
+nRF24l01plus::nRF24l01plus(int id, Ether* someEther) : theEther(someEther), chip(&nRF24l01plus::runRF24,this)
 {
     //ctor
     this->id = id;
@@ -25,53 +25,60 @@ nRF24l01plus::nRF24l01plus(int id, Ether* someEther) : theEther(someEther)
 void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 {
     //copy from ether
-    auto theMsg = shared_ptr<tMsgFrame>(new tMsgFrame(msg));
+    rxMsg = shared_ptr<tMsgFrame>(new tMsgFrame(msg));
 
-    if (theMsg->radioId == 0)
+    if (rxMsg->radioId == 0)
     {
         printf("ERROR: radioId=0\n");
     }
     //Sent from this radio, ignore. Software event system sends to all radios.
     //In the real world the sending radio would not hear its own transmission
-    if (theMsg->radioId==id)
+    if (rxMsg->radioId==id)
     {
         return;
     }
 
-    printf("%d: nRF24l01plus::receiveMsgFromEther msg=%s collision=%d\n", id, theMsg->toString().c_str(),collision);
-    if (!collision)
-    {//collision did not happen
-        printf("%d: pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d\n", id, isPWRUP(), getCE(), isRX_MODE(), waitingForAck);
+    printf("%d: nRF24l01plus::receiveMsgFromEther msg=%s collision=%d\n", id, rxMsg->toString().c_str(),collision);
 
-        if (waitingForAck)
+    if (!collision)
+    {
+        //collision did not happen
+        cmdNotify(PRX);
+    }
+    collision = false;
+}
+
+void nRF24l01plus::startPRX()
+{
+    printf("%d: pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d\n", id, isPWRUP(), getCE(), isRX_MODE(), waitingForAck);
+    if (waitingForAck)
+    {
+        //waiting for ack
+        byte pipe = addressToPipe(rxMsg->Address);
+        printf("%d: addr=0x%llx  ack_addr=0x%llx\n", id, rxMsg->Address,ACK_address);
+        if (rxMsg->Address == ACK_address)
         {
-            //waiting for ack
-            byte pipe = addressToPipe(theMsg->Address);
-            printf("%d: addr=0x%llx  ack_addr=0x%llx\n", id, theMsg->Address,ACK_address);
-            if (theMsg->Address == ACK_address)
-            {
-                //addess is the P0 address, this is ACK packet
-                ackReceived(theMsg, pipe);
-            }
+            //addess is the P0 address, this is ACK packet
+            ackReceived(rxMsg, pipe);
         }
-        else if (isPWRUP() && getCE())
-        {
-            //in a Standby mode (PWRUP = 1 && CE = 1)
-            byte pipe = addressToPipe(theMsg->Address);
-            //printf("%d: pipe=%u\n", id, pipe);
-            if (isRX_MODE())
-            {//receiving
-                //check if address is one off the pipe addresses
-                if (pipe!=0xFF)
-                {//pipe is open ready to receve
-                    //fill RX buffer1
-                    receive_frame(theMsg, pipe);
-                    sendAutoAck(theMsg,pipe);
-                }
+    }
+    else if (isPWRUP() && getCE())
+    {
+        //in a Standby mode (PWRUP = 1 && CE = 1)
+        byte pipe = addressToPipe(rxMsg->Address);
+        //printf("%d: pipe=%u\n", id, pipe);
+        if (isRX_MODE())
+        {//receiving
+            //check if address is one off the pipe addresses
+            if (pipe!=0xFF)
+            {//pipe is open ready to receve
+                //fill RX buffer1
+                receive_frame(rxMsg, pipe);
+                sendAutoAck(rxMsg,pipe);
             }
         }
     }
-    collision = false;
+    rxMsg = nullptr;
 }
 
 void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
@@ -173,7 +180,7 @@ void nRF24l01plus::CEsetHIGH()
     {
         return;
     }
-    startPTX();
+    cmdNotify(PTX);
 }
 
 /*
@@ -186,8 +193,7 @@ void nRF24l01plus::TXmodeSet()
     {
         return;
     }
-    startPTX();
-
+    cmdNotify(PTX);
 }
 
 void nRF24l01plus::TXpacketAdded()
@@ -196,7 +202,7 @@ void nRF24l01plus::TXpacketAdded()
     {
         return;
     }
-    startPTX();
+    cmdNotify(PTX);
 }
 
 void nRF24l01plus::PWRUPset()
@@ -205,7 +211,7 @@ void nRF24l01plus::PWRUPset()
     {
         return;
     }
-    startPTX();
+    cmdNotify(PTX);
 }
 
 void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
@@ -268,6 +274,48 @@ void nRF24l01plus::startTimer(int time)
         theTimer.setStartInterval(time);
         theTimer.setPeriodicInterval(0);
         theTimer.start(*noACKalarmCallback);
+    }
+}
+
+void nRF24l01plus::runRF24()
+{
+    printf("%id:running\n",id);
+    while (true)
+    {
+        std::unique_lock<std::mutex> lock(m);
+        cmdAvailable.wait(lock);
+        processCmd();
+        lock.unlock();
+    }
+}
+
+void nRF24l01plus::processCmd()
+{
+    printf("%u: processing cmd=%d\n",id,pendingCmd);
+    switch(pendingCmd)
+    {
+        case PTX:
+            startPTX();
+            break;
+        case PRX:
+            startPRX();
+            break;
+    }
+    pendingCmd=IDLE;
+}
+
+//This will run in the rf24 thread
+void nRF24l01plus::cmdNotify(int cmd)
+{
+    if (pendingCmd==IDLE)
+    {
+        pendingCmd = cmd;
+        cmdAvailable.notify_one();
+    }
+    else
+    {
+        printf("%u: cmd already pending cmd=%d",id,pendingCmd);
+        return;
     }
 }
 

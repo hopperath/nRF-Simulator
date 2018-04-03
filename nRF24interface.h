@@ -18,24 +18,17 @@ class nRF24interface : public nRF24registers
         std::queue<std::shared_ptr<tMsgFrame>> TX_FIFO;
         uint8_t PID;
 
-        //Thread for RF24 processor
-        void run();
-        //std::thread chip(nRF24interface::run);
-        std::thread chip;
-        bool cmdAvailable = false;
+
 
     public:
         /** Default constructor */
         nRF24interface();
-
         byte Spi_Write(byte * msg, int spiMsgLen, byte* dataBack, int dataMax=0);
-        byte _Spi_Write(byte* msg,int spiMsgLen, byte* dataBack, int dataMax);
 
-        //move to protected
-        bool receive_frame(std::shared_ptr<tMsgFrame> theFrame, byte pipe);
 
     protected:
         //inteface functions
+        bool receive_frame(std::shared_ptr<tMsgFrame> theFrame, byte pipe);
         void newFrame(uint64_t Address, uint8_t PayLength, uint8_t thePID, uint8_t theNP_ACK,uint8_t* Payload);
         std::shared_ptr<tMsgFrame> read_RX_payload();
         std::shared_ptr<tMsgFrame> getTXpacket(uint64_t address = 0);
