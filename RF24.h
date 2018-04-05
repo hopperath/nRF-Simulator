@@ -141,11 +141,7 @@ class RF24
      */
     void reUseTX();
 
-    /**
-     * Check if the radio needs to be read. Can be used to prevent data loss
-     * @return True if all three 32-byte radio buffers are full
-     */
-    bool rxFifoFull();
+
 
     /**
      * Set chip select pin
@@ -430,6 +426,12 @@ class RF24
      * @return True if there is a payload available, false if none is
      */
     bool available(void);
+
+    /**
+     * Check if the radio needs to be read. Can be used to prevent data loss
+     * @return True if all three 32-byte radio buffers are full
+     */
+    bool rxFifoFull();
 
     /**
      * Read the payload

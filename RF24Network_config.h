@@ -52,11 +52,11 @@
 
 #define PSTR(x) (x)
 #define delayMicroseconds(x) usleep(x)
-#define delay(x) usleep(x*1000)
+#define delay(x) usleep((x)*1000)
 #define sprintf_P sprintf
 #define printf_P printf
 
-#define __linux
+//#define __linux
 #define RF24_LINUX
 
 /** Debug Options */

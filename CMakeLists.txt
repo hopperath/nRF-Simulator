@@ -14,7 +14,7 @@ set(POCO_LIBS
         "${POCO_LIB_DIR}/libPocoFoundation.dylib")
 
 include_directories( /usr/local/include ${POCO_INCLUDE})
-
+add_definitions(-D__linux)
 set(SOURCE_FILES
         ether.cpp
         ether.h
@@ -29,12 +29,19 @@ set(SOURCE_FILES
         nRF24l01plus.h
         nRF24registers.cpp
         nRF24registers.h
-        RF24.cpp
-        RF24.h
         RF24_config.h
-        RF24Network.cpp
-        RF24Network.h
+        RF24.h
+        RF24.cpp
         RF24Network_config.h
+        RF24Network.h
+        RF24Network.cpp
+        RF24Mesh_config.h
+        RF24Mesh.h
+        RF24Mesh.cpp
+        MeshDHCP.cpp
+        MeshDHCP.h
+        MeshNode.cpp
+        MeshNode.h
         )
 add_executable(nRF_Simulator ${SOURCE_FILES})
 
