@@ -74,7 +74,7 @@ uint8_t RF24::read_register(uint8_t reg)
     byte sentCMD[1] = {(byte) (R_REGISTER|(REGISTER_MASK&reg))};
     byte msgBack[1];
     theNRF24l01plus->Spi_Write(sentCMD, 1, msgBack);
-    printf("%d: RF24::read_register reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",theNRF24l01plus->id, reg,BYTE_TO_BINARY(msgBack[0]));
+    //printf("%d: RF24::read_register reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",theNRF24l01plus->id, reg,BYTE_TO_BINARY(msgBack[0]));
     return msgBack[0];
 }
 
@@ -228,7 +228,7 @@ void RF24::print_address_register(const char* name, uint8_t reg, uint8_t qty)
 
 RF24::RF24(uint8_t _cepin, uint8_t _cspin, nRF24l01plus* theNRFsim) :
         ce_pin(_cepin), csn_pin(_cspin), wide_band(true), p_variant(false),
-        payload_size(32), ack_payload_available(false), dynamic_payloads_enabled(false),
+        payload_size(32), dynamic_payloads_enabled(false),
         pipe0_reading_address(0), theNRF24l01plus(theNRFsim)
 {
 }
@@ -741,7 +741,6 @@ void RF24::enableDynamicAck()
 
 bool RF24::isAckPayloadAvailable()
 {
-    printf("%u: isAckPayloadAvailable=%u\n",theNRF24l01plus->id,ack_payload_available);
     return !(read_register(FIFO_STATUS)&_BV(RX_EMPTY));
 }
 

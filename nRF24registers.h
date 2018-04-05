@@ -50,7 +50,7 @@ class nRF24registers
         bool isFIFO_TX_FULL(){return REGISTERS.sFIFO_STATUS.sTX_FULL;}
         bool isFIFO_RX_EMTPY(){return REGISTERS.sFIFO_STATUS.sRX_EMPTY;}
         bool isFIFO_RX_FULL(){return REGISTERS.sFIFO_STATUS.sRX_FULL;}
-        bool isRX_MODE(){return REGISTERS.sCONFIG.sPRIM_RX;}
+        bool isPRIM_RX(){return REGISTERS.sCONFIG.sPRIM_RX;}
         void _setTX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 0;}
         void _setRX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 1;}
         bool isPWRUP(){return REGISTERS.sCONFIG.sPWR_UP;}

@@ -209,6 +209,18 @@ uint64_t nRF24registers::getTXaddress()
 
 byte nRF24registers::addressToPipe(uint64_t address)
 {
+    //printf("%d: addr=0x%llx reg0=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
+    //printf("%d: addr=0x%llx reg1=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
+    //printf("%d: addr=0x%llx reg2=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P2]));
+    //printf("%d: addr=0x%llx reg3=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P3]));
+    //printf("%d: addr=0x%llx reg4=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P4]));
+    //printf("%d: addr=0x%llx reg5=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P5]));
+
+    uint64_t msb = *((uint64_t*) register_array[eRX_ADDR_P1]) & 0xFFFFFFFFFFFFFF00;
+
+    //printf("%d: addr=0x%llx msb=0x%llx\n", id, address, msb);
+    //printf("%d: addr=0x%llx msb=0x%llx\n", id, address, msb | *((byte*) register_array[eRX_ADDR_P2]));
+
     if (REGISTERS.sEN_RXADDR.sERX_P0)
     {
         if (address==*((uint64_t*) register_array[eRX_ADDR_P0]))
@@ -227,7 +239,8 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P2)
     {
-        if (address==*((uint64_t*) register_array[eRX_ADDR_P2]))
+
+        if (address==(msb | *((byte*) register_array[eRX_ADDR_P2])))
         {
             return 2;
         }
@@ -235,7 +248,7 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P3)
     {
-        if (address==*((uint64_t*) register_array[eRX_ADDR_P3]))
+        if (address==(msb | *((byte*) register_array[eRX_ADDR_P3])))
         {
             return 3;
         }
@@ -243,7 +256,7 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P4)
     {
-        if (address==*((uint64_t*) register_array[eRX_ADDR_P4]))
+        if (address==(msb | *((byte*) register_array[eRX_ADDR_P4])))
         {
             return 4;
         }
@@ -251,7 +264,7 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P5)
     {
-        if (address==*((uint64_t*) register_array[eRX_ADDR_P5]))
+        if (address==(msb | *((byte*) register_array[eRX_ADDR_P5])))
         {
             return 5;
         }

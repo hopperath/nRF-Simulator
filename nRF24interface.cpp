@@ -216,7 +216,7 @@ shared_ptr<tMsgFrame> nRF24interface::getTXpacket(uint64_t address)
 
 shared_ptr<tMsgFrame> nRF24interface::read_RX_payload()
 {
-    if (isRX_MODE() || (isACKPayloadEnabled() && isDynamicPayloadEnabled()))
+    if (isPRIM_RX() || (isACKPayloadEnabled() && isDynamicPayloadEnabled()))
     {
         if (RX_FIFO.empty())
         {
@@ -327,7 +327,7 @@ void nRF24interface::write_ack_payload(byte* bytes_to_write, int len)
 
 void nRF24interface::flush_rx()
 {/*****check if device is in RX mode*/
-    if (isRX_MODE()==1)
+    if (isPRIM_RX()==1)
     {
         while (!RX_FIFO.empty())
         {
@@ -341,7 +341,7 @@ void nRF24interface::flush_rx()
 
 void nRF24interface::flush_tx()
 {/********chec if device is in TX mode*******************/
-    if (isRX_MODE()==0)
+    if (isPRIM_RX()==0)
     {
         while (!TX_FIFO.empty())
         {

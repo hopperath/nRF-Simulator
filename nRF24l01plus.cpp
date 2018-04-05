@@ -66,12 +66,12 @@ void nRF24l01plus::startPRX()
     else
     {
         byte pipe = addressToPipe(rxMsg->Address);
-        //printf("%d: pipe=%u\n", id, pipe);
+        printf("%d: addr=0x%llx pipe=0x%x\n", id, rxMsg->Address, pipe);
         //check if address is one off the pipe addresses
         if (pipe!=0xFF)
         {
-            //pipe is open ready to receve
-            //fill RX buffer1
+            //pipe is open ready to receive
+            //fill RX buffer
             receive_frame(rxMsg, pipe);
             sendAutoAck(rxMsg, pipe);
         }
@@ -173,6 +173,7 @@ void nRF24l01plus::startPTX()
     {
         //no ack, last transmitted is the one that is
         removeTXPacket(packetToSend);
+        standbyTransition();
         setTX_DS_IRQ();
     }
 }
@@ -183,7 +184,7 @@ void nRF24l01plus::startPTX()
  */
 void nRF24l01plus::CEset()
 {
-    printf("%d: CEset state=%s\n", id, stateToString());
+    printf("%d: CEset CE=%d state=%s\n", id, getCE(),stateToString());
 
     //TODO: this should be a "shockburst mode" flag.
     //Ignore CE if processing
@@ -206,7 +207,7 @@ void nRF24l01plus::CEset()
  */
 void nRF24l01plus::RXTXmodeSet()
 {
-    printf("%d: RXTXmodeSet state=%s\n", id, stateToString());
+    printf("%d: RXTXmodeSet PRIM_RX=%d state=%s\n", id, isPRIM_RX(), stateToString());
     //Only changes if in standby_1 i think...
     if (radioState==S_STANDBY_I)
     {
@@ -226,7 +227,7 @@ void nRF24l01plus::TXPacketAdded()
 
 void nRF24l01plus::PWRset()
 {
-    printf("%d: PWRset state=%s\n", id, stateToString());
+    printf("%d: PWRset PWR=%d state=%s\n", id, isPWRUP(), stateToString());
     if (isPWRUP())
     {
         setRadioState(S_STANDBY_I);
@@ -304,6 +305,8 @@ void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
         }
     }
     removeTXPacket(TXpacket);
+    setTX_MODE();
+    standbyTransition();
     waitingForAck = false;
     theTimer.stop();
     setTX_DS_IRQ();
@@ -312,15 +315,16 @@ void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
 void nRF24l01plus::removeTXPacket(shared_ptr<tMsgFrame> frame)
 {
     nRF24interface::removeTXPacket(frame);
-    standbyTransition();
 }
 
 //TODO: Go to proper state after trying all items? does it try them all? in FIFO, i.e. CE=1
 void nRF24l01plus::standbyTransition()
 {
+    printf("%d: PWR=%d PRIM_RX=%d CE=%d isFIFO_TX_EMPTY=%u\n", id,isPWRUP(),isPRIM_RX(),getCE(),isFIFO_TX_EMPTY());
+
     if (getCE())
     {
-        if (isRX_MODE())
+        if (isPRIM_RX())
         {
             setRadioState(S_RX_MODE);
         }

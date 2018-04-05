@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 
     if (timeout)
     {
-        printf("Timeout!");
+        printf("Radio2 Timeout waiting for pkt\n");
     }
     else
     {
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 
     if (timeout)
     {
-        printf("Timeout!");
+        printf("Radio3 Timeout waiting for pkt\n");
     }
     else
     {
@@ -162,12 +162,15 @@ int main(int argc, char *argv[])
 
     if (radio->isAckPayloadAvailable())
     {
-        char buffer[10];
-        while (radio->read(buffer, sizeof(buffer)))
+        char buffer2[15];
+        while (radio->available())
         {
-            printf("ack buffer=%s\n", buffer);
+            radio->read(buffer2, sizeof(buffer2));
+            printf("ack buffer=%s\n", buffer2);
         }
     }
+
+    radio->startListening();
     /*
     radio2->stopListening();
     radio2->printDetails();
