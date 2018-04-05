@@ -35,9 +35,11 @@ set(SOURCE_FILES
         RF24Network_config.h
         RF24Network.h
         RF24Network.cpp
-        RF24Mesh_config.h
-        RF24Mesh.h
-        RF24Mesh.cpp
+        RF24MeshNode_config.h
+        RF24MeshNode.h
+        RF24MeshNode.cpp
+        RF24MeshMaster_config.h
+        RF24MeshMaster.h
         MeshDHCP.cpp
         MeshDHCP.h
         MeshNode.cpp
