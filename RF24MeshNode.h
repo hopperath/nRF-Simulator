@@ -43,13 +43,12 @@
  * Class declaration for RF24Mesh
  */
 
-#include "RF24Mesh_config.h"
+#include "RF24MeshNode_config.h"
 
 #if defined (__linux) && !defined(__ARDUINO_X86__)
 
 #include "RF24.h"
 #include "RF24Network.h"
-#include "MeshDHCP.h"
 #include <vector>
 #include <memory>
 
@@ -71,7 +70,7 @@ class RF24Network;
 
 class MeshDHCP;
 
-class RF24Mesh
+class RF24MeshNode
 {
     /**@}*/
     /**
@@ -93,7 +92,7 @@ class RF24Mesh
      * @param _network The underlying network instance
      */
 
-    RF24Mesh(RF24& _radio, RF24Network& _network);
+    RF24MeshNode(RF24& _radio, RF24Network& _network);
 
     /**
      * Call this in setup() to configure the mesh and request an address.  <br>
