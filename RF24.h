@@ -17,9 +17,15 @@
 
 #include "RF24_config.h"
 #include "nRF24l01plus.h"
+#include "nRF24L01.h"
 
 #define LOW 0
 #define HIGH 1
+#define TX_STANDBY_TIMEOUT 750
+
+static const uint8_t child_pipe[] = { RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5 };
+static const uint8_t child_payload_size[] = { RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5 };
+static const uint8_t child_pipe_enable[] = { ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5 };
 
 /**
  * Power Amplifier level.
@@ -67,8 +73,24 @@ class RF24
     bool dynamic_payloads_enabled; /**< Whether dynamic payloads are enabled. */
     uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
     uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
+    uint8_t addr_width; /**< The address width to use - 3,4 or 5 bytes. */
     nRF24l01plus* theNRF24l01plus;
     protected:
+
+    /**
+    *
+    * Thriver will delay for this duration when stopListening() is called
+    *
+    * When responding to payloads, faster devices like ARM(RPi) are much faster than Arduino:
+    * 1. Arduino sends data to RPi, switches to RX mode
+    * 2. The RPi receives the data, switches to TX mode and sends before the Arduino radio is in RX mode
+    * 3. If AutoACK is disabled, this can be set as low as 0. If AA/ESB enabled, set to 100uS minimum on RPi
+    *
+    * @warning If set to 0, ensure 130uS delay after stopListening() and before any sends
+    */
+
+    uint32_t txDelay;
+
     /**
      * @name Low-level internal interface.
      *
@@ -77,6 +99,54 @@ class RF24
      *  may want to extend this class.
      */
     /**@{*/
+
+    /**
+     * Disable dynamically-sized payloads
+     *
+     * This disables dynamic payloads on ALL pipes. Since Ack Payloads
+     * requires Dynamic Payloads, Ack Payloads are also disabled.
+     * If dynamic payloads are later re-enabled and ack payloads are desired
+     * then enableAckPayload() must be called again as well.
+     *
+     */
+    void disableDynamicPayloads();
+
+    /**
+     * Enable dynamic ACKs (single write multicast or unicast) for chosen messages
+     *
+     * @note To enable full multicast or per-pipe multicast, use setAutoAck()
+     *
+     * @warning This MUST be called prior to attempting single write NOACK calls
+     * @code
+     * radio.enableDynamicAck();
+     * radio.write(&data,32,1);  // Sends a payload with no acknowledgement requested
+     * radio.write(&data,32,0);  // Sends a payload using auto-retry/autoACK
+     * @endcode
+     */
+    void enableDynamicAck();
+
+    /**
+     * This function is mainly used internally to take advantage of the auto payload
+     * re-use functionality of the chip, but can be beneficial to users as well.
+     *
+     * The function will instruct the radio to re-use the data in the FIFO buffers,
+     * and instructs the radio to re-send once the timeout limit has been reached.
+     * Used by writeFast and writeBlocking to initiate retries when a TX failure
+     * occurs. Retries are automatically initiated except with the standard write().
+     * This way, data is not flushed from the buffer until switching between modes.
+     *
+     * @note This is to be used AFTER auto-retry fails if wanting to resend
+     * using the built-in payload reuse features.
+     * After issuing reUseTX(), it will keep reending the same payload forever or until
+     * a payload is written to the FIFO, or a flush_tx command is given.
+     */
+    void reUseTX();
+
+    /**
+     * Check if the radio needs to be read. Can be used to prevent data loss
+     * @return True if all three 32-byte radio buffers are full
+     */
+    bool rxFifoFull();
 
     /**
      * Set chip select pin
@@ -115,6 +185,13 @@ class RF24
      * @return Current value of register @p reg
      */
     uint8_t read_register(uint8_t reg);
+
+    /**
+     * Set the address width from 3 to 5 bytes (24, 32 or 40 bit)
+     *
+     * @param a_width The address width to use: 3,4 or 5
+     */
+    void setAddressWidth(uint8_t a_width);
 
     /**
      * Write a chunk of data to a register
@@ -305,6 +382,50 @@ class RF24
     bool write(const void* buf, uint8_t len);
 
     /**
+     * Write for single NOACK writes. Optionally disables acknowledgements/autoretries for a single write.
+     *
+     * @note enableDynamicAck() must be called to enable this feature
+     *
+     * Can be used with enableAckPayload() to request a response
+     * @see enableDynamicAck()
+     * @see setAutoAck()
+     * @see write()
+     *
+     * @param buf Pointer to the data to be sent
+     * @param len Number of bytes to be sent
+     * @param multicast Request ACK (0), NOACK (1)
+     */
+    bool write( const void* buf, uint8_t len, const bool multicast );
+
+    /**
+     * This function extends the auto-retry mechanism to any specified duration.
+     * It will not block until the 3 FIFO buffers are filled with data.
+     * If so the library will auto retry until a new payload is written
+     * or the user specified timeout period is reached.
+     * @warning It is important to never keep the nRF24L01 in TX mode and FIFO full for more than 4ms at a time. If the auto
+     * retransmit is enabled, the nRF24L01 is never in TX mode long enough to disobey this rule. Allow the FIFO
+     * to clear by issuing txStandBy() or ensure appropriate time between transmissions.
+     *
+     * @code
+     * Example (Full blocking):
+     *
+     *			radio.writeBlocking(&buf,32,1000); //Wait up to 1 second to write 1 payload to the buffers
+     *			txStandBy(1000);     			   //Wait up to 1 second for the payload to send. Return 1 if ok, 0 if failed.
+     *					  				   		   //Blocks only until user timeout or success. Data flushed on fail.
+     * @endcode
+     * @note If used from within an interrupt, the interrupt should be disabled until completion, and sei(); called to enable millis().
+     * @see txStandBy()
+     * @see write()
+     * @see writeFast()
+     *
+     * @param buf Pointer to the data to be sent
+     * @param len Number of bytes to be sent
+     * @param timeout User defined timeout in milliseconds.
+     * @return True if the payload was loaded into the buffer successfully false if not
+     */
+    bool writeBlocking( const void* buf, uint8_t len, uint32_t timeout );
+
+    /**
      * Test whether there are bytes available to be read
      *
      * @return True if there is a payload available, false if none is
@@ -323,9 +444,8 @@ class RF24
      *
      * @param buf Pointer to a buffer where the data should be written
      * @param len Maximum number of bytes to read into the buffer
-     * @return True if the payload was delivered successfully false if not
      */
-    bool read(void* buf, uint8_t len);
+    void read(void* buf, uint8_t len);
 
     /**
      * Open a pipe for writing
@@ -700,6 +820,13 @@ class RF24
     bool txStandBy();
 
     /**
+     * Close a pipe after it has been previously opened.
+     * Can be safely called without having previously opened a pipe.
+     * @param pipe Which pipe # to close, 0-5.
+     */
+    void closeReadingPipe( uint8_t pipe );
+
+    /**
     * This function allows extended blocking and auto-retries per a user defined timeout
     * @code
     *	Fully Blocking Example:
@@ -715,7 +842,7 @@ class RF24
     * @return True if transmission is successful
     *
     */
-    bool txStandBy(uint32_t timeout, bool startTx = 0);
+    bool txStandBy(uint32_t timeout = TX_STANDBY_TIMEOUT, bool startTx = 0);
 
     /**
     * This will not block until the 3 FIFO buffers are filled with data.
@@ -765,7 +892,8 @@ class RF24
     * Non-blocking write to the open writing pipe used for buffered writes
     *
     * @note Optimization: This function now leaves the CE pin high, so the radio
-    * will remain in TX or STANDBY-II Mode until a txStandBy() command is issued. Can be used as an alternative to startWrite()
+    * will remain in TX or STANDBY-II Mode until a txStandBy() command is issued.
+    * Can be used as an alternative to startWrite()
     * if writing multiple payloads at once.
     * @warning It is important to never keep the nRF24L01 in TX mode with FIFO full for more than 4ms at a time. If the auto
     * retransmit/autoAck is enabled, the nRF24L01 is never in TX mode long enough to disobey this rule. Allow the FIFO

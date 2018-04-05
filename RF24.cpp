@@ -16,6 +16,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+using namespace std;
+
 uint32_t millis()
 {
     struct timeval theTime;
@@ -54,13 +56,44 @@ uint8_t RF24::read_register(uint8_t reg, uint8_t* buf, uint8_t len)
 
 /****************************************************************************/
 
+void RF24::reUseTX()
+{
+    //TODO:
+    /*
+    write_register(STATUS, _BV(MAX_RT));              //Clear max retry flag
+    spiTrans(REUSE_TX_PL);
+    ce(LOW);                                          //Re-Transfer packet
+    ce(HIGH);
+     */
+}
+
+/****************************************************************************/
+
 uint8_t RF24::read_register(uint8_t reg)
 {
     byte sentCMD[1] = {(byte) (R_REGISTER|(REGISTER_MASK&reg))};
     byte msgBack[1];
     theNRF24l01plus->Spi_Write(sentCMD, 1, msgBack);
-    //printf("%d: RF24::read_register reg:0x%X valueBack: 0x%X\n",theNRF24l01plus->id,reg,msgBack[0]);
+    printf("%d: RF24::read_register reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",theNRF24l01plus->id, reg,BYTE_TO_BINARY(msgBack[0]));
     return msgBack[0];
+}
+
+/****************************************************************************/
+
+void RF24::setAddressWidth(uint8_t a_width)
+{
+
+    if (a_width -= 2)
+    {
+        write_register(SETUP_AW, a_width % 4);
+        addr_width = (a_width % 4) + 2;
+    }
+    else
+    {
+        write_register(SETUP_AW, 0);
+        addr_width = 2;
+    }
+
 }
 
 /****************************************************************************/
@@ -290,6 +323,8 @@ void RF24::printDetails(void)
 void RF24::begin()
 {
 
+    uint8_t setup = 0;
+
     ce(LOW);
     csn(HIGH);
 
@@ -301,13 +336,13 @@ void RF24::begin()
     // WARNING: Delay is based on P-variant whereby non-P *may* require different timing.
     usleep(5000);
 
+    // Reset NRF_CONFIG and enable 16-bit CRC.
+    write_register(CONFIG, 0x0C);
+
     // Set 1500uS (minimum for 32B payload in ESB@250KBPS) timeouts, to make testing a little easier
     // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet
     // sizes must never be used. See documentation for a more complete explanation.
-    write_register(SETUP_RETR, (0b0100 << ARD)|(0b1111 << ARC));
-
-    // Restore our default PA level
-    setPALevel(RF24_PA_MAX);
+    setRetries(5, 15);
 
     // Determine if this is a p or non-p RF24 module and then
     // reset our data rate back to default value. This works
@@ -323,10 +358,14 @@ void RF24::begin()
     setDataRate(RF24_1MBPS);
 
     // Initialize CRC and request 2-byte (16bit) CRC
-    setCRCLength(RF24_CRC_16);
+    //setCRCLength(RF24_CRC_16);
 
-    // Disable dynamic payloads, to match dynamic_payloads_enabled setting
+
+    // Disable dynamic payloads, to match dynamic_payloads_enabled setting - Reset value is 0
+    toggle_features();
+    write_register(FEATURE, 0);
     write_register(DYNPD, 0);
+    dynamic_payloads_enabled = false;
 
     // Reset current status
     // Notice reset and flush is the last thing we do
@@ -337,9 +376,18 @@ void RF24::begin()
     // spectrum.
     setChannel(76);
 
+
     // Flush buffers
     flush_rx();
     flush_tx();
+
+    powerUp(); //Power up by default when begin() is called
+
+    // Enable PTX, do not write CE high so radio will remain in standby I mode ( 130us max to transition to RX or TX instead of 1500us from powerUp )
+    // PTX should use only 22uA of power
+    write_register(CONFIG, (read_register(CONFIG))&~_BV(PRIM_RX));
+
+    // if setup is 0 or ff then there was no response from module
 }
 
 /****************************************************************************/
@@ -349,18 +397,23 @@ void RF24::startListening()
     write_register(CONFIG, read_register(CONFIG)|_BV(PWR_UP)|_BV(PRIM_RX));
     write_register(STATUS, _BV(RX_DR)|_BV(TX_DS)|_BV(MAX_RT));
 
+    ce(HIGH);
     // Restore the pipe0 adddress, if exists
     if (pipe0_reading_address)
     {
         write_register(RX_ADDR_P0, reinterpret_cast<const uint8_t*>(&pipe0_reading_address), 5);
     }
+    else
+    {
+        closeReadingPipe(0);
+    }
 
     // Flush buffers
-    flush_rx();
-    flush_tx();
-
-    // Go!
-    ce(HIGH);
+    //flush_rx();
+    if (read_register(FEATURE)&_BV(EN_ACK_PAY))
+    {
+        flush_tx();
+    }
 
     // wait for the radio to come up (130us actually only needed)
     usleep(130);
@@ -368,17 +421,35 @@ void RF24::startListening()
 
 /****************************************************************************/
 
+bool RF24::rxFifoFull()
+{
+    return read_register(FIFO_STATUS)&_BV(RX_FULL);
+}
+
+/****************************************************************************/
+
 void RF24::stopListening(void)
 {
     ce(LOW);
-    flush_tx();
-    flush_rx();
+
+    usleep(txDelay);
+
+    if (read_register(FEATURE)&_BV(EN_ACK_PAY))
+    {
+        usleep(txDelay); //200
+        flush_tx();
+    }
+
+    write_register(CONFIG, (read_register(CONFIG))&~_BV(PRIM_RX));
+
+    write_register(EN_RXADDR, read_register(EN_RXADDR)|_BV(pgm_read_byte(&child_pipe_enable[0]))); // Enable RX on pipe0
 }
 
 /****************************************************************************/
 
 void RF24::powerDown(void)
 {
+    ce(LOW);
     write_register(CONFIG, read_register(CONFIG)&~_BV(PWR_UP));
 }
 
@@ -386,71 +457,64 @@ void RF24::powerDown(void)
 
 void RF24::powerUp(void)
 {
-    write_register(CONFIG, read_register(CONFIG)|_BV(PWR_UP));
+    uint8_t cfg = read_register(CONFIG);
+
+    // if not powered up then power up and wait for the radio to initialize
+    if (!(cfg&_BV(PWR_UP)))
+    {
+        write_register(CONFIG, cfg|_BV(PWR_UP));
+
+        // For nRF24L01+ to go from power down mode to TX or RX mode it must first pass through stand-by mode.
+        // There must be a delay of Tpd2stby (see Table 16.) after the nRF24L01+ leaves power down mode before
+        // the CEis set high. - Tpd2stby can be up to 5ms per the 1.0 datasheet
+        usleep(5000);
+    }
 }
 
 /******************************************************************/
 
+void RF24::closeReadingPipe(uint8_t pipe)
+{
+    write_register(EN_RXADDR, read_register(EN_RXADDR)&~_BV(child_pipe_enable[pipe]));
+}
+
 bool RF24::write(const void* buf, uint8_t len)
+{
+    return write(buf,len,false);
+}
+
+bool RF24::write(const void* buf, uint8_t len,bool multicast)
 {
     printf("%d RF24::write len=%u\n", theNRF24l01plus->id, len);
 
-    // Begin the write
-    startWrite(buf, len);
+        //Start Writing
+        startFastWrite(buf, len, multicast);
 
-    // ------------
-    // At this point we could return from a non-blocking write, and then call
-    // the rest after an interrupt
+        //Wait until complete or failed
+        uint32_t timer = millis();
 
-    // Instead, we are going to block here until we get TX_DS (transmission completed and ack'd)
-    // or MAX_RT (maximum retries, transmission failed).  Also, we'll timeout in case the radio
-    // is flaky and we get neither.
+        while (!(get_status()&(_BV(TX_DS)|_BV(MAX_RT))))
+        {
+            if(millis() - timer > 95)
+            {
+                return false;
+            }
+        }
 
-    // IN the end, the send should be blocking.  It comes back in 60ms worst case, or much faster
-    // if I tighted up the retry logic.  (Default settings will be 1500us.
-    // Monitor the send
-    uint8_t observe_tx;
-    uint8_t status;
+        ce(LOW);
 
-    uint32_t sent_at = millis();
-    const uint32_t timeout = 500; //ms to wait for timeout
-    do
-    {
-        status = read_register(OBSERVE_TX, &observe_tx, 1);
-    }
-    while (!(status&(_BV(TX_DS)|_BV(MAX_RT))) && (millis() - sent_at<timeout));
+        uint8_t status = write_register(STATUS, _BV(RX_DR)|_BV(TX_DS)|_BV(MAX_RT));
 
-    printf("%u: write time=%u\n",theNRF24l01plus->id,millis()-sent_at);
-    // The part above is what you could recreate with your own interrupt handler,
-    // and then call this when you got an interrupt
-    // ------------
-
-    // Call this when you get an interrupt
-    // The status tells us three things
-    // * The send was successful (TX_DS)
-    // * The send failed, too many retries (MAX_RT)
-    // * There is an ack packet waiting (RX_DR)
-    bool tx_ok, tx_fail;
-    whatHappened(tx_ok, tx_fail, ack_payload_available);
-
-    //printf("%u%u%u\r\n",tx_ok,tx_fail,ack_payload_available);
-
-    // Handle the ack packet
-    if (ack_payload_available)
-    {
-        ack_payload_length = getDynamicPayloadSize();
-    }
-
-    // Yay, we are done.
-
-    // Power down
-    powerDown();
-
-    // Flush buffers (Is this a relic of past experimentation, and not needed anymore??)
-    flush_tx();
-
-    return tx_ok;
+        //Max retries exceeded
+        if (status&_BV(MAX_RT))
+        {
+            flush_tx(); //Only going to be 1 packet int the FIFO at a time using this method, so just flush
+            return 0;
+        }
+        //TX OK 1 or 0
+        return 1;
 }
+
 /****************************************************************************/
 
 void RF24::startWrite(const void* buf, uint8_t len)
@@ -489,47 +553,32 @@ bool RF24::available()
 
 bool RF24::available(uint8_t* pipe_num)
 {
-    uint8_t status = get_status();
-
-    // Too noisy, enable if you really want lots o data!!
-    //IF_SERIAL_DEBUG(print_status(status));
-
-    bool result = (status&_BV(RX_DR));
-
-    if (result)
+    if (!(read_register(FIFO_STATUS)&_BV(RX_EMPTY)))
     {
+
         // If the caller wants the pipe number, include that
         if (pipe_num)
         {
-            *pipe_num = (status >> RX_P_NO)&0b111;
+            uint8_t status = get_status();
+            *pipe_num = (status >> RX_P_NO)&0x07;
         }
-
-        // Clear the status bit
-
-        // ??? Should this REALLY be cleared now?  Or wait until we
-        // actually READ the payload?
-
-        write_register(STATUS, _BV(RX_DR));
-
-        // Handle ack payload receipt
-        if (status&_BV(TX_DS))
-        {
-            write_register(STATUS, _BV(TX_DS));
-        }
+        return 1;
     }
 
-    return result;
+    return 0;
 }
 
 /****************************************************************************/
 
-bool RF24::read(void* buf, uint8_t len)
+void RF24::read(void* buf, uint8_t len)
 {
+
     // Fetch the payload
     read_payload(buf, len);
 
-    // was this the last of the data available?
-    return read_register(FIFO_STATUS)&_BV(RX_EMPTY);
+    //Clear the two possible interrupt flags with one command
+    write_register(STATUS, _BV(RX_DR)|_BV(MAX_RT)|_BV(TX_DS));
+
 }
 
 /****************************************************************************/
@@ -568,18 +617,7 @@ void RF24::openWritingPipe(uint64_t value)
 
 /****************************************************************************/
 
-static const uint8_t child_pipe[] =
-        {
-                RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5
-        };
-static const uint8_t child_payload_size[] =
-        {
-                RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5
-        };
-static const uint8_t child_pipe_enable[] =
-        {
-                ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5
-        };
+
 
 void RF24::openReadingPipe(uint8_t child, uint64_t address)
 {
@@ -627,15 +665,10 @@ void RF24::toggle_features()
 void RF24::enableDynamicPayloads()
 {
     // Enable dynamic payload throughout the system
+
+    //toggle_features();
     write_register(FEATURE, read_register(FEATURE)|_BV(EN_DPL));
 
-    // If it didn't work, the features are not enabled
-    if (!read_register(FEATURE))
-    {
-        // So enable them and try again
-        toggle_features();
-        write_register(FEATURE, read_register(FEATURE)|_BV(EN_DPL));
-    }
 
     // Enable dynamic payload on all pipes
     //
@@ -646,6 +679,24 @@ void RF24::enableDynamicPayloads()
     dynamic_payloads_enabled = true;
 }
 
+
+/****************************************************************************/
+void RF24::disableDynamicPayloads()
+{
+    // Disables dynamic payload throughout the system.  Also disables Ack Payloads
+
+    //toggle_features();
+    write_register(FEATURE, read_register(FEATURE)&~(_BV(EN_DPL)|_BV(EN_ACK_PAY)));
+
+    // Disable dynamic payload on all pipes
+    //
+    // Not sure the use case of only having dynamic payload on certain
+    // pipes, so the library does not support it.
+    write_register(DYNPD, read_register(DYNPD)&~(_BV(DPL_P5)|_BV(DPL_P4)|_BV(DPL_P3)|_BV(DPL_P2)|_BV(DPL_P1)|_BV(DPL_P0)));
+
+    dynamic_payloads_enabled = false;
+}
+
 /****************************************************************************/
 
 void RF24::enableAckPayload()
@@ -653,22 +704,14 @@ void RF24::enableAckPayload()
     //
     // enable ack payload and dynamic payload features
     //
-
     write_register(FEATURE, read_register(FEATURE)|_BV(EN_ACK_PAY)|_BV(EN_DPL));
 
-    // If it didn't work, the features are not enabled
-    if (!read_register(FEATURE))
-    {
-        // So enable them and try again
-        toggle_features();
-        write_register(FEATURE, read_register(FEATURE)|_BV(EN_ACK_PAY)|_BV(EN_DPL));
-    }
 
     //
     // Enable dynamic payload on pipes 0 & 1
     //
-
     write_register(DYNPD, read_register(DYNPD)|_BV(DPL_P1)|_BV(DPL_P0));
+    dynamic_payloads_enabled = true;
 }
 
 /****************************************************************************/
@@ -686,12 +729,20 @@ void RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
 
 /****************************************************************************/
 
+void RF24::enableDynamicAck()
+{
+    //
+    // enable dynamic ack features
+    //
+    write_register(FEATURE, read_register(FEATURE)|_BV(EN_DYN_ACK));
+}
+
+/****************************************************************************/
+
 bool RF24::isAckPayloadAvailable()
 {
-    printf("%u, isAckPayloadAvailable=%u\n",theNRF24l01plus->id,ack_payload_available);
-    bool result = ack_payload_available;
-    ack_payload_available = false;
-    return result;
+    printf("%u: isAckPayloadAvailable=%u\n",theNRF24l01plus->id,ack_payload_available);
+    return !(read_register(FIFO_STATUS)&_BV(RX_EMPTY));
 }
 
 /****************************************************************************/
@@ -811,6 +862,47 @@ rf24_pa_dbm_e RF24::getPALevel()
 
 /****************************************************************************/
 
+//For general use, the interrupt flags are not important to clear
+bool RF24::writeBlocking(const void* buf, uint8_t len, uint32_t timeout)
+{
+    //Block until the FIFO is NOT full.
+    //Keep track of the MAX retries and set auto-retry if seeing failures
+    //This way the FIFO will fill up and allow blocking until packets go through
+    //The radio will auto-clear everything in the FIFO as long as CE remains high
+
+    uint32_t timer = millis();                              //Get the time that the payload transmission started
+
+    while ((get_status()&(_BV(TX_FULL))))
+    {
+        //Blocking only if FIFO is full. This will loop and block until TX is successful or timeout
+        if (get_status()&_BV(MAX_RT))
+        {                      //If MAX Retries have been reached
+            reUseTX();                                          //Set re-transmit and clear the MAX_RT interrupt flag
+            if (millis() - timer>timeout)
+            {
+                return 0;
+            }          //If this payload has exceeded the user-defined timeout, exit and return 0
+        }
+#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
+        if(millis() - timer > (timeout+95) )
+        {
+            errNotify();
+   #if defined (FAILURE_HANDLING)
+            return 0;
+   #endif
+        }
+#endif
+
+    }
+
+    //Start Writing
+    startFastWrite(buf, len, 0);                                  //Write the payload if a buffer is clear
+
+    return 1;                                                  //Return 1 to indicate successful transmission
+}
+
+/****************************************************************************/
+
 bool RF24::setDataRate(rf24_datarate_e speed)
 {
     bool result = false;
@@ -819,12 +911,14 @@ bool RF24::setDataRate(rf24_datarate_e speed)
     // HIGH and LOW '00' is 1Mbs - our default
     wide_band = false;
     setup &= ~(_BV(RF_DR_LOW)|_BV(RF_DR_HIGH));
+    txDelay = 85;
     if (speed==RF24_250KBPS)
     {
         // Must set the RF_DR_LOW to 1; RF_DR_HIGH (used to be RF_DR) is already 0
         // Making it '10'.
         wide_band = false;
         setup |= _BV(RF_DR_LOW);
+        txDelay = 450;
     }
     else
     {
@@ -834,6 +928,7 @@ bool RF24::setDataRate(rf24_datarate_e speed)
         {
             wide_band = true;
             setup |= _BV(RF_DR_HIGH);
+            txDelay = 190;
         }
         else
         {
@@ -942,26 +1037,6 @@ void RF24::setRetries(uint8_t delay, uint8_t count)
     write_register(SETUP_RETR, (delay&0xf) << ARD|(count&0xf) << ARC);
 }
 
-bool RF24::txStandBy()
-{
-
-    uint32_t timeout = millis();
-    while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
-    {
-        if (get_status()&_BV(MAX_RT))
-        {
-            write_register(STATUS, _BV(MAX_RT));
-            ce(LOW);
-            flush_tx();    //Non blocking, flush the data
-            return 0;
-        }
-    }
-
-    ce(LOW);               //Set STANDBY-I mode
-    return 1;
-}
-
-
 bool RF24::txStandBy(uint32_t timeout, bool startTx)
 {
 
@@ -974,17 +1049,19 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
 
     while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
     {
+        if (millis() - start>=timeout)
+        {
+            ce(LOW);
+            flush_tx();
+            return 0;
+        }
+
         if (get_status()&_BV(MAX_RT))
         {
+            //Set re-transmit
             write_register(STATUS, _BV(MAX_RT));
-            ce(LOW);       //Set re-transmit
+            ce(LOW);
             ce(HIGH);
-            if (millis() - start>=timeout)
-            {
-                ce(LOW);
-                flush_tx();
-                return 0;
-            }
         }
     }
 
@@ -1000,9 +1077,13 @@ bool RF24::writeFast(const void* buf, uint8_t len, const bool multicast)
     //Return 0 so the user can control the retrys and set a timer or failure counter if required
     //The radio will auto-clear everything in the FIFO as long as CE remains high
 
-    while ((get_status()&(_BV(TX_FULL))))
-    {              //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
+#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
+    uint32_t timer = millis();
+#endif
 
+    //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
+    while ((get_status()&(_BV(TX_FULL))))
+    {
         if (get_status()&_BV(MAX_RT))
         {
             //reUseTX();							//Set re-transmit
@@ -1010,8 +1091,16 @@ bool RF24::writeFast(const void* buf, uint8_t len, const bool multicast)
             return 0;                               //Return 0. The previous payload has been retransmitted
             //From the user perspective, if you get a 0, just keep trying to send the same payload
         }
+#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
+        if (millis() - timer > 95 )
+        {
+            errNotify();
+   #if defined (FAILURE_HANDLING)
+            return 0;
+   #endif
+        }
+#endif
     }
-
     //Start Writing
     startFastWrite(buf, len, multicast);
 
@@ -1051,15 +1140,15 @@ uint8_t RF24::write_payload(const void* buf, uint8_t data_len, const uint8_t wri
 
     //printf("Writing %u bytes %u blanks\n", data_len, blank_len);
 
-    byte* tempBuf = (byte*) calloc(sizeof(byte), data_len + 2);
+    //Safer, was a memory leak
+    auto bufCopy = shared_ptr<byte>(new byte[data_len + 2]);
+    auto tempBuf = bufCopy.get();
+
     byte placeholder[5];
-    memcpy(tempBuf + 1, buf, data_len);
     tempBuf[0] = writeType;
+    memcpy(tempBuf + 1, buf, data_len);
 
     return theNRF24l01plus->Spi_Write(tempBuf, data_len, placeholder);
-
-
-    return status;
 }
 
 // vim:ai:cin:sts=2 sw=2 ft=cpp

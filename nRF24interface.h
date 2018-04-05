@@ -41,9 +41,9 @@ class nRF24interface : public nRF24registers
         uint8_t read_RX_payload_width();
         commands get_command(byte command);
         uint8_t nextPID();
-        void removeTXPacket(std::shared_ptr<tMsgFrame> msgFrame);
         uint16_t crc16(const unsigned char* data_p, uint8_t length);
 
+        virtual void removeTXPacket(std::shared_ptr<tMsgFrame> msgFrame);
 
 };
 

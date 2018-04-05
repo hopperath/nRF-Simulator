@@ -103,9 +103,17 @@ void nRF24registers::setCE_HIGH()
     printf("%d: setCE_HIGH\n", id);
     CE = true;
     //was signal
-    CEsetHIGH();
+    CEset();
 }
 
+void nRF24registers::setCE_LOW()
+{
+    printf("%d: setCE_LOW\n",id);
+    CE = false;
+    CEset();
+}
+
+/*
 void nRF24registers::printBin(byte toPrint)
 {
     int i = 8;
@@ -118,6 +126,7 @@ void nRF24registers::printBin(byte toPrint)
         toPrint <<= 1;
     }
 }
+ */
 
 byte* nRF24registers::read_register(byte* read_command)
 {
@@ -128,8 +137,8 @@ byte* nRF24registers::read_register(byte* read_command)
 void nRF24registers::write_register(byte* bytes_to_write)
 {
     byte temp;
-    bool emitTXmodeSignal = false;
-    bool emitPWRUPsig = false;
+    bool emitRXTXmodeSignal = false;
+    bool emitPWRsig = false;
     if (CE==false)
     {
         byte addr = bytes_to_write[0]&0b00011111;
@@ -150,13 +159,14 @@ void nRF24registers::write_register(byte* bytes_to_write)
 
         if (addr==eCONFIG)
         {
-            if (((*where_to_write&0b1)==1) && ((*bytes_to_write&0b1)==0))
-            {//was in RX mode => switch to TX mode
-                emitTXmodeSignal = true;
-            }
-            if (((*where_to_write&0b10)==0) && ((*bytes_to_write&0b10)==1))
+            if ((*where_to_write&0b1)!=(*bytes_to_write&0b1))
             {
-                emitPWRUPsig = true;
+                // RX/TX mode change
+                emitRXTXmodeSignal = true;
+            }
+            if ((*where_to_write&0b10)!=(*bytes_to_write&0b10))
+            {
+                emitPWRsig = true;
             }
         }
 
@@ -179,15 +189,15 @@ void nRF24registers::write_register(byte* bytes_to_write)
             //printf("written: %llx\n", *((uint64_t*) where_to_write));
         }
     }
-    if (emitTXmodeSignal==true)
+    if (emitRXTXmodeSignal==true)
     {
         //emit TXmodeSet();
-        TXmodeSet();
+        RXTXmodeSet();
     }
-    if (emitPWRUPsig==true)
+    if (emitPWRsig==true)
     {
         //emit PWRUPset();
-        PWRUPset();
+        PWRset();
     }
 }
 

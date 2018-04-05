@@ -5,6 +5,17 @@
 #include <string>
 #include "nRF24bits_struct.h"
 
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  ((byte) & 0x80 ? '1' : '0'), \
+  ((byte) & 0x40 ? '1' : '0'), \
+  ((byte) & 0x20 ? '1' : '0'), \
+  ((byte) & 0x10 ? '1' : '0'), \
+  ((byte) & 0x08 ? '1' : '0'), \
+  ((byte) & 0x04 ? '1' : '0'), \
+  ((byte) & 0x02 ? '1' : '0'), \
+  ((byte) & 0x01 ? '1' : '0')
+
 class nRF24registers
 {
     public:
@@ -20,7 +31,7 @@ class nRF24registers
         void printRegContents();
         bool checkIRQ();
         void setCE_HIGH();
-        void setCE_LOW(){printf("%d: setCE_LOW\n",id); CE = false;}
+        void setCE_LOW();
         bool getCE(){return CE;}
 
     protected:
@@ -40,8 +51,8 @@ class nRF24registers
         bool isFIFO_RX_EMTPY(){return REGISTERS.sFIFO_STATUS.sRX_EMPTY;}
         bool isFIFO_RX_FULL(){return REGISTERS.sFIFO_STATUS.sRX_FULL;}
         bool isRX_MODE(){return REGISTERS.sCONFIG.sPRIM_RX;}
-        void setTX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 0;}
-        void setRX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 1;}
+        void _setTX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 0;}
+        void _setRX_MODE(){REGISTERS.sCONFIG.sPRIM_RX = 1;}
         bool isPWRUP(){return REGISTERS.sCONFIG.sPWR_UP;}
         void clearRX_FULL(){REGISTERS.sFIFO_STATUS.sRX_FULL = 0;}
         void setRX_FULL(){REGISTERS.sFIFO_STATUS.sRX_FULL = 1;}
@@ -63,7 +74,6 @@ class nRF24registers
         void clearARC_CNT(){REGISTERS.sOBSERVE_TX.sARC_CNT = 0;}
         uint8_t getARC_CNT(){return REGISTERS.sOBSERVE_TX.sARC_CNT;}
         void setRX_P_NO(byte pipe){REGISTERS.sSTATUS.sRX_P_NO = pipe;}
-        void printBin(byte toPrint);
 
 
     private:
@@ -71,10 +81,12 @@ class nRF24registers
         void* register_array[0x1E];
         bool CE;
 
+    protected:
     //signals
-        virtual void CEsetHIGH() = 0;
-        virtual void TXmodeSet() = 0;
-        virtual void PWRUPset() = 0;
+        virtual void CEset() = 0;
+        virtual void RXTXmodeSet() = 0;
+        virtual void PWRset() = 0;
+        virtual void TXPacketAdded() = 0;
 };
 
 #endif // NRF24REGISTERS_H

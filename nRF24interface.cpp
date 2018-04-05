@@ -102,11 +102,11 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             write_TX_payload(msg + 1, spiMsgLen);
             break;
         case eFLUSH_TX:
-            printf("%d: COMMAND SENT: FLUSH_TX\n", id);
+            //printf("%d: COMMAND SENT: FLUSH_TX\n", id);
             flush_tx();
             break;
         case eFLUSH_RX:
-            printf("%d: COMMAND SENT: FLUSH_RX\n", id);
+            //printf("%d: COMMAND SENT: FLUSH_RX\n", id);
             flush_rx();
             break;
         case eR_RX_PL_WID:
@@ -126,7 +126,14 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             break;
     }
 
-    //printf("STATUS: 0x%x\n", status);
+    /*
+    printf("%d: STATUS: " BYTE_TO_BINARY_PATTERN,id,BYTE_TO_BINARY(status));
+    byte reg = eCONFIG;
+    printf("  CONFIG: " BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(*read_register(&reg)));
+    reg = eFIFO_STATUS;
+    printf("  FIFO: " BYTE_TO_BINARY_PATTERN "\n", BYTE_TO_BINARY(*read_register(&reg)));
+     */
+
     return status;
 }
 
@@ -264,6 +271,11 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, 
     {
         setTX_FULL();
         setTX_FULL_IRQ();
+    }
+    //Not an ACK payload
+    if (theFrame->Address==0)
+    {
+        TXPacketAdded();
     }
 }
 
