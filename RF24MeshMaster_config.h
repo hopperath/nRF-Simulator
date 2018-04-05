@@ -6,14 +6,7 @@
 /*** User Configuration ***/
 #define MESH_MAX_CHILDREN 4 /** Set 1 to 4 (Default: 4) Restricts the maximum children per node. **/
 
-#if !defined (__linux)
-  #define MESH_NOMASTER  /** This can be set to 0 for all nodes except the master (nodeID 0) to save pgm space **/
-#endif
-
-//Default to MASTER if linux (raspi)
-#if defined (__linux)
-   #define MESH_MASTER
-#endif
+#define MESH_MASTER
 
 /***Advanced User Config***/
 #define MESH_LOOKUP_TIMEOUT 3000  /** How long mesh write will retry address lookups before giving up. This is not used when sending to or from the master node. **/

@@ -5,7 +5,7 @@
 #ifndef PARK_GATEWAY_MESHDHCP_H
 #define PARK_GATEWAY_MESHDHCP_H
 
-#include "RF24Mesh_config.h"
+#include "RF24MeshMaster_config.h"
 
 #if defined(MESH_MASTER)
 

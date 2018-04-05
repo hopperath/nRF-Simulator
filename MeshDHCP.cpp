@@ -3,7 +3,7 @@
 //
 
 
-#include "RF24Mesh.h"
+#include "RF24MeshMaster.h"
 #include "MeshNode.h"
 
 #if defined(MESH_MASTER)

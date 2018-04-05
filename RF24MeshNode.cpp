@@ -1,514 +1,571 @@
 
 
-#ifndef __RF24MESH_H__
-#define __RF24MESH_H__
-
-#include <stdio.h>
-#include <stdlib.h>
 
 
-/**
- * Network/Mesh Response Types
- * The network will determine whether to automatically acknowledge payloads based on their type
- * RF24Mesh uses pre-defined system types for interacting with RF24Network at the system level
- *
- */
+#include "RF24MeshNode.h"
+#include "RF24MeshNode_config.h"
+#include <fstream>
 
-// Network ACK types
-#define MESH_ADDR_CONFIRM 129
-// No Network ACK types
-#define MESH_ADDR_LOOKUP 196
-#define MESH_ADDR_RELEASE 197
-#define MESH_ID_LOOKUP 198
 
-#define MESH_BLANK_ID 65535
-
-// Mesh Address constants
-
-// Max polls
-#define MESH_MAXPOLLS 4
-// Time to wait for poll response
-#define MESH_POLL_TIMEOUT 55
-
-// Time to wait for address request
-#define NETWORK_ADDR_RESPONSE_TIMEOUT  225
-
-#define MESH_PING_DELAY 103
-
-#define MESH_GET_ADDR_TIMEOUT 150
-
-/**
- * @file RF24Mesh.h
- *
- * Class declaration for RF24Mesh
- */
-
-#include "RF24Mesh_config.h"
-
-#if defined (__linux) && !defined(__ARDUINO_X86__)
-
-#include "RF24.h"
-#include "RF24Network.h"
-#include "MeshDHCP.h"
-#include <vector>
-#include <memory>
-
-#define RF24_LINUX
-
+#if defined(__linux)
+//extern void delay(unsigned int millis);
+extern unsigned int millis();
 #else
-#include <RF24.h>
-#include <RF24Network.h>
+extern void delay(unsigned long millis);
+extern unsigned long millis();
 #endif
 
-#include <stddef.h>
-#include <stdint.h>
-#include "unistd.h"
+using namespace std;
 
 
-class RF24;
-
-class RF24Network;
-
-class MeshDHCP;
-
-class RF24Mesh
+RF24MeshNode::RF24MeshNode( RF24& _radio,RF24Network& _network ) : radio(_radio),network(_network)
 {
-    /**@}*/
-    /**
-     * @name RF24Mesh
-     *
-     *  The mesh library and class documentation is currently in active development and usage may change.
-     */
-    /**@{*/
-    public:
-    /**
-     * Construct the mesh:
-     *
-     * @code
-     * RF24 radio(7,8);
-     * RF24Network network(radio);
-     * RF24Mesh mesh(radio,network);
-     * @endcode
-     * @param _radio The underlying radio driver instance
-     * @param _network The underlying network instance
-     */
-
-    RF24Mesh(RF24& _radio, RF24Network& _network);
-
-    /**
-     * Call this in setup() to configure the mesh and request an address.  <br>
-     *
-     * @code mesh.begin(); @endcode
-     * This may take a few moments to complete.
-     *
-     * The following parameters are optional:
-     * @param channel The radio channel (1-127) default:97
-     * @param data_rate The data rate (RF24_250KBPS,RF24_1MBPS,RF24_2MBPS) default:RF24_1MBPS
-     * @param timeout How long to attempt address renewal in milliseconds default:60000
-     */
-    bool begin(uint8_t channel = MESH_DEFAULT_CHANNEL, rf24_datarate_e data_rate = RF24_1MBPS, rf24_pa_dbm_e power = RF24_PA_MAX,
-               uint32_t timeout = MESH_RENEWAL_TIMEOUT);
-
-    /**
-     * Very similar to network.update(), it needs to be called regularly to keep the network
-     * and the mesh going.
-     */
-    uint8_t update();
-
-    /**
-     * Automatically construct a header and send a payload
-     * Very similar to the standard network.write() function, which can be used directly.
-     *
-     * @note Including the nodeID parameter will result in an automatic address lookup being performed.
-     * @note Message types 1-64 (decimal) will NOT be acknowledged by the network, types 65-127 will be. Use as appropriate to manage traffic:
-     * if expecting a response, no ack is needed.
-     *
-     * @param data Send any type of data of any length (Max length determined by RF24Network layer)
-     * @param msg_type The user-defined (1-127) message header_type to send. Used to distinguish between different types of data being transmitted.
-     * @param size The size of the data being sent
-     * @param nodeID **Optional**: The nodeID of the recipient if not sending to master
-     * @return True if success, False if failed
-     */
-    bool write(const void* data, uint8_t msg_type, size_t size, uint8_t nodeID = 0);
-
-    /**
-     * Set a unique nodeID for this node. This value is stored in program memory, so is saved after loss of power.
-     *
-     * This should be called before mesh.begin(), or set via serial connection or other methods if configuring a large number of nodes...
-     * @note If using RF24Gateway and/or RF24Ethernet, nodeIDs 0 & 1 are used by the master node.
-     * @param nodeID Can be any unique value ranging from 1 to 255.
-     */
-    void setNodeID(uint8_t nodeID);
-    /**
-     * Get NodeID for this node
-     * @return
-     */
-    uint8_t getNodeID();
+}
 
 
+/*****************************************************/
 
-    /**@}*/
-    /**
-     * @name Advanced Operation
-     *
-     *  For advanced configuration and usage of the mesh
-     */
-    /**@{*/
+bool RF24MeshNode::begin(uint8_t channel, rf24_datarate_e data_rate, rf24_pa_dbm_e power, uint32_t timeout)
+{
+    //delay(1); // Found problems w/SPIDEV & ncurses. Without this, getch() returns a stream of garbage
+    #if defined (MESH_DEBUG_SERIAL)
+        Serial.println("MESH V2.0.0");
+    #elif defined (MESH_DEBUG_PRINTF)
+         printf( "MESH V2.0.0\n");
+    #endif
 
-    /**
-     * Convert an RF24Network address into a nodeId.
-     * @param address If no address is provided, returns the local nodeID, otherwise a lookup request is sent to the master node
-     * @return Returns the unique identifier (1-255) or -1 if not found.
-     */
-    int16_t getNodeIdForAddress(uint16_t address);
+    radio.begin();
+    radio_channel = channel;
+    radio.setChannel(radio_channel);
+    radio.setDataRate(data_rate);
+    radio.setPALevel(power);
 
-    /**
-     * Tests connectivity of this node to the mesh.
-     * @note If this function fails, the radio will be put into standby mode, and will not receive payloads until the address is renewed.
-     * @return Return 1 if connected, 0 if mesh not responding after up to 1 second
-     */
+    network.returnSysMsgs = true;
 
-    bool checkConnection();
-
-    /**
-    * Reconnect to the mesh and renew the current RF24Network address. Used to re-establish a connection to the mesh if physical location etc. has changed, or
-    * a routing node goes down.
-    * @note Currently times out after 1 minute if address renewal fails. Network writes should not be attempted if address renewal fails.
-    *
-    * @note If all nodes are set to verify connectivity/reconnect at a specified period, leaving the master offline for this length of time should result
-    * in complete network/mesh reconvergence.
-    * @param timeout How long to attempt address renewal in milliseconds default:60000
-
-    * @return Returns the newly assigned RF24Network address
-    */
-    uint16_t renewAddress(uint32_t timeout = MESH_RENEWAL_TIMEOUT);
-
-    /**
-     * Releases the currently assigned address lease. Useful for nodes that will be sleeping etc.
-     * @note Nodes should ensure that addresses are releases successfully prior to renewal.
-     * @return Returns 1 if successfully released, 0 if not
-     */
-    bool releaseAddress();
-
-    /**
-     * The assigned RF24Network (Octal) address of this node
-     * @return Returns an unsigned 16-bit integer containing the RF24Network address in octal format
-     */
-    uint16_t mesh_address;
-
-    /**
-     * Convert a nodeID into an RF24Network address
-     * @note If printing or displaying the address, it needs to be converted to octal format: Serial.println(address,OCT);
-     *
-     * Results in a lookup request being sent to the master node.
-     * @param nodeID - The unique identifier (1-255) of the node
-     * @return Returns the RF24Network address of the node or -1 if not found or lookup failed.
-     */
-    int16_t getAddress(uint8_t nodeID);
-
-    /**
-     * Write to a specific node by RF24Network address.
-     *
-     */
-    bool write(uint16_t to_node, const void* data, uint8_t msg_type, size_t size);
-
-    /**
-    * Change the active radio channel after the mesh has been started.
-    */
-    void setChannel(uint8_t _channel);
-
-    /**
-    * Allow child nodes to discover and attach to this node.
-    * @param allow True to allow children, False to prevent children from attaching automatically.
-    */
-    void setChild(bool allow);
-
+    if(getNodeID()) //Not master node
+    {
+        mesh_address = MESH_DEFAULT_ADDRESS;
+        if(!renewAddress(timeout))
+        {
+            return false;
+        }
+    }
 #if defined(MESH_MASTER)
-
-
-
-    /**
-    * Only to be used on the master node. Provides automatic configuration for sensor nodes, similar to DHCP.
-    * Call immediately after calling network.update() to ensure address requests are handled appropriately
-    */
-
-
-    MeshDHCP mMeshDHCP;
-
+    else
+    {
+        mMeshDHCP.loadDHCP();
+        mesh_address = MASTER_NODE;
+        network.begin(mesh_address);
+    }
 #endif
 
+    return true;
+}
+
+/*****************************************************/
+
+uint8_t RF24MeshNode::update()
+{
+
+    uint8_t type = network.update();
+
+    //MASTER
+   #if defined(MESH_MASTER)
+
+    if(type == NETWORK_REQ_ADDRESS)
+    {
+        mMeshDHCP.DHCP(network);
+    }
+    else if( (type == MESH_ADDR_LOOKUP || type == MESH_ID_LOOKUP))
+    {
+        RF24NetworkHeader* header = reinterpret_cast<RF24NetworkHeader*>(network.frame_buffer);
+        header->to_node = header->from_node;
+
+        if(type==MESH_ADDR_LOOKUP)
+        {
+            int16_t returnAddr = getAddress(network.frame_buffer[sizeof(RF24NetworkHeader)]);
+            network.write(*header,&returnAddr,sizeof(returnAddr));
+            printf("Returning addr lookup 0%o to 0%o   \n",returnAddr,header->to_node);
+        }
+        else
+        {
+            int16_t returnAddr = getNodeIdForAddress(network.frame_buffer[sizeof(RF24NetworkHeader)]);
+            network.write(*header,&returnAddr,sizeof(returnAddr));
+            printf("Returning id lookup 0%o to 0%o   \n",returnAddr,header->to_node);
+        }
+    }
+    else if(type == MESH_ADDR_RELEASE )
+    {
+        uint16_t *fromAddr = (uint16_t*)network.frame_buffer;
+
+        mMeshDHCP.releaseAddress(*fromAddr);
+    }
+    else if(type == MESH_ADDR_CONFIRM )
+    {
+        RF24NetworkHeader* header = reinterpret_cast<RF24NetworkHeader*>(network.frame_buffer);
+        mMeshDHCP.setAddress(header->reserved,header->from_node,MeshNode::CONFIRMED);
+    }
+
+   #endif
+    return type;
+}
 
 
 
+bool RF24MeshNode::write(uint16_t to_node, const void* data, uint8_t msg_type, size_t size )
+{
+    if(mesh_address == MESH_DEFAULT_ADDRESS)
+    {
+        return false;
+    }
+    RF24NetworkHeader header(to_node,msg_type);
+    return network.write(header,data,size);
+}
 
-    /**@}*/
-    /**
-     * @name Address list struct
-     *
-     *  See the list struct class reference
-     */
-    /**@{*/
+/*****************************************************/
 
-    /**@}*/
+bool RF24MeshNode::write(const void* data, uint8_t msg_type, size_t size, uint8_t nodeID)
+{
+    if(mesh_address == MESH_DEFAULT_ADDRESS)
+    {
+        return false;
+    }
 
-    uint8_t _nodeID;
+    int16_t toNode = 0;
+    uint32_t lookupTimeout = millis()+ MESH_LOOKUP_TIMEOUT;
+    uint32_t retryDelay = 50;
+
+    if(nodeID)
+    {
+
+        while( (toNode=getAddress(nodeID)) < 0 )
+        {
+            if(millis() > lookupTimeout || toNode == -2)
+            {
+                return false;
+            }
+            retryDelay+=50;
+            delay(retryDelay);
+        }
+    }
+    return write(toNode,data,msg_type,size);
+}
+
+/*****************************************************/
+
+void RF24MeshNode::setChannel(uint8_t _channel)
+{
+
+    radio_channel = _channel;
+    radio.setChannel(radio_channel);
+    radio.startListening();
+}
+/*****************************************************/
+void RF24MeshNode::setChild(bool allow)
+{
+    //Prevent old versions of RF24Network from throwing an error
+    //Note to remove this ""if defined"" after a few releases from 1.0.1
+    #if defined FLAG_NO_POLL
+    network.networkFlags = allow ? network.networkFlags & ~FLAG_NO_POLL : network.networkFlags | FLAG_NO_POLL;
+    #endif
+}
+/*****************************************************/
+
+bool RF24MeshNode::checkConnection()
+{
+
+    uint8_t count = 3;
+    bool ok = 0;
+    while(count-- && mesh_address != MESH_DEFAULT_ADDRESS)
+    {
+        update();
+        if(radio.rxFifoFull() || (network.networkFlags & FLAG_HOLD_INCOMING))
+        {
+            return 1;
+        }
+        RF24NetworkHeader header(00,NETWORK_PING);
+        ok = network.write(header,0,0);
+        if(ok)
+        {
+            break;
+        }
+        delay(MESH_PING_DELAY);
+    }
+    if(!ok)
+    {
+        radio.stopListening();
+    }
+    return ok;
+}
+
+/*****************************************************/
+
+int16_t RF24MeshNode::getAddress(uint8_t nodeID)
+{
+
+//MASTER
+#if defined(MESH_MASTER)
+    if(getNodeID()==MASTER_NODE)  //Master Node
+    {
+        auto node = mMeshDHCP.findByNodeId(nodeID);
+        if (node != nullptr)
+        {
+            return node->netAddress;
+        }
+        else
+        {
+            return -1;
+        }
+    }
+#endif
+    if(mesh_address == MESH_DEFAULT_ADDRESS)
+    {
+        return -1;
+    }
+    if(nodeID==MASTER_NODE)
+    {
+        return MASTER_NODE;
+    }
+
+    //TODO:: looping on network.update could drop MESH MSG
+    //       move to event pattern
+    RF24NetworkHeader header( 00, MESH_ADDR_LOOKUP );
+    if(network.write(header,&nodeID,sizeof(nodeID)+1) )
+    {
+        uint32_t timer=millis();
+        uint32_t timeout = MESH_GET_ADDR_TIMEOUT;
+        while(network.update() != MESH_ADDR_LOOKUP)
+        {
+            if(millis()-timer > timeout)
+            {
+                return -1;
+            }
+        }
+    }
+    else
+    {
+        return -1;
+    }
+    int16_t address = 0;
+    memcpy(&address,network.frame_buffer+sizeof(RF24NetworkHeader),sizeof(address));
+    return address >= 0 ? address : -2;
+}
+
+uint8_t RF24MeshNode::getNodeID()
+{
+    return _nodeID;
+}
+
+int16_t RF24MeshNode::getNodeIdForAddress(uint16_t address)
+{
+
+    if(address == 0)
+    {
+        return 0;
+    }
+    else if (address == mesh_address) //This node
+    {
+        return mesh_address;
+    }
+
+    if(mesh_address)
+    {
+        if(mesh_address == MESH_DEFAULT_ADDRESS)
+        {
+            return -1;
+        }
+
+
+        RF24NetworkHeader header( 00, MESH_ID_LOOKUP );
+        if(network.write(header,&address,sizeof(address)) )
+        {
+            uint32_t timer=millis(), timeout = 500;
+            // This ok for a node, mesh.update just calls network.update
+            while(network.update() != MESH_ID_LOOKUP)
+            {
+                if(millis()-timer > timeout)
+                {
+                    return -1;
+                }
+            }
+            int16_t ID;
+            memcpy(&ID,&network.frame_buffer[sizeof(RF24NetworkHeader)],sizeof(ID));
+            return ID;
+        }
+    }
+#if defined(MESH_MASTER)
+    else  //Master Node
+    {
+        auto node = mMeshDHCP.findByAddress(address);
+        if (node !=nullptr)
+        {
+            return node->nodeId;
+        }
+    }
+#endif
+
+    return -1;
+}
+/*****************************************************/
+
+bool RF24MeshNode::releaseAddress()
+{
+
+    if(mesh_address == MESH_DEFAULT_ADDRESS)
+    {
+        return 0;
+    }
+
+    RF24NetworkHeader header(00,MESH_ADDR_RELEASE);
+    if(network.write(header,0,0))
+    {
+        network.begin(MESH_DEFAULT_ADDRESS);
+        mesh_address=MESH_DEFAULT_ADDRESS;
+        return 1;
+    }
+    return 0;
+}
+
+/*****************************************************/
+
+uint16_t RF24MeshNode::renewAddress(uint32_t timeout)
+{
+
+    if(radio.available())
+    {
+        return 0;
+    }
+    uint8_t reqCounter = 0;
+    uint8_t totalReqs = 0;
+    radio.stopListening();
+
+    network.networkFlags |= 2;
+    delay(10);
+
+    network.begin(MESH_DEFAULT_ADDRESS);
+    mesh_address = MESH_DEFAULT_ADDRESS;
+
+    uint32_t start = millis();
+    while(!requestAddress(reqCounter))
+    {
+        if(millis()-start > timeout)
+        {
+            return 0;
+        }
+        delay(50 + ( (totalReqs+1)*(reqCounter+1)) * 2);
+        (++reqCounter) = reqCounter%4;
+        (++totalReqs) = totalReqs%10;
+    }
+    network.networkFlags &= ~2;
+    return mesh_address;
+}
+
+/*****************************************************/
 
 
 
+bool RF24MeshNode::requestAddress(uint8_t level)
+{
 
-    /**
-     * @name Deprecated
-     *
-     *  Methods provided for backwards compabibility with old/testing code.
-     */
-    /**@{*/
+    RF24NetworkHeader header( MULTICAST_ADDRESS_NODE, NETWORK_POLL );
+    //Find another radio, starting with level 0 multicast
+    #if defined (MESH_DEBUG_SERIAL)
+    Serial.print( millis() );
+    Serial.print(F(" MSH: Poll Level "));
+    Serial.println(level);
+    #endif
+    network.multicast(header,0,0,level);
 
-
-
-    private:
-    RF24& radio;
-    RF24Network& network;
-    bool findNodes(RF24NetworkHeader& header, uint8_t level, uint16_t* address); /**< Broadcasts to all multicast levels to find available nodes **/
-    bool requestAddress(uint8_t level); /**< Actual requesting of the address once a contact node is discovered or supplied **/
-    bool waitForAvailable(uint32_t timeout); /**< Waits for data to become available */
-    uint8_t radio_channel;
-
-};
-
-#endif // __RF24MESH_H__
+    uint32_t timr = millis();
+    uint16_t contactNode[MESH_MAXPOLLS];
+    uint8_t pollCount=0;
 
 
-/**
- * @example RF24Mesh_Example.ino
- * <b> Arduino Example Sketch </b><br>
- * This example sketch shows how to manually configure a node via RF24Mesh, and send data to the
- * master node.
- * The nodes will refresh their network address as soon as a single write fails. This allows the
- * nodes to change position in relation to each other and the master node.
+    while(true)
+    {
+        #if defined (MESH_DEBUG_SERIAL) || defined (MESH_DEBUG_PRINTF)
+        bool goodSignal = radio.testRPD();
+        #endif
+        // This ok for a node, mesh.update just calls network.update
+        if(network.update() == NETWORK_POLL)
+        {
+            memcpy(&contactNode[pollCount],&network.frame_buffer[0],sizeof(uint16_t));
+            ++pollCount;
+
+            #if defined (MESH_DEBUG_SERIAL) || defined (MESH_DEBUG_PRINTF)
+            if(goodSignal)
+            {
+                // This response was better than -64dBm
+                #if defined (MESH_DEBUG_SERIAL)
+                Serial.print( millis() ); Serial.println(F(" MSH: Poll > -64dbm "));
+                #elif defined (MESH_DEBUG_PRINTF)
+                printf( "%u MSH: Poll > -64dbm\n", millis() );
+                #endif
+            }
+            else
+            {
+                #if defined (MESH_DEBUG_SERIAL)
+                Serial.print( millis() ); Serial.println(F(" MSH: Poll < -64dbm "));
+                #elif defined (MESH_DEBUG_PRINTF)
+                printf( "%u MSH: Poll < -64dbm\n", millis() );
+                #endif
+            }
+            #endif
+        }
+
+        if(millis() - timr > MESH_POLL_TIMEOUT  || pollCount >=  MESH_MAXPOLLS )
+        {
+            if(!pollCount)
+            {
+              #if defined (MESH_DEBUG_SERIAL)
+                Serial.print( millis() ); Serial.print(F(" MSH: No poll from level ")); Serial.println(level);
+              #elif defined (MESH_DEBUG_PRINTF)
+                printf( "%u MSH: No poll from level %d\n", millis(), level);
+              #endif
+                return 0;
+            }
+            else
+            {
+
+              #if defined (MESH_DEBUG_SERIAL)
+                Serial.print( millis() );
+                Serial.print(F(" MSH: Poll OK Level "));
+                Serial.println(level);
+              #elif defined (MESH_DEBUG_PRINTF)
+                printf( "%u MSH: Poll OK %u respones\n", millis() , pollCount);
+              #endif
+                break;
+            }
+        }
+    }
+
+
+    #ifdef MESH_DEBUG_SERIAL
+    Serial.print( millis() );
+    Serial.print(F(" MSH: Got poll from level "));
+    Serial.print(level);
+    Serial.print(F(" count "));
+    Serial.println(pollCount);
+    #elif defined MESH_DEBUG_PRINTF
+    printf("%u MSH: Got poll from level %d count %d\n",millis(),level,pollCount);
+    #endif
+
+    uint8_t type=0;
+    for(uint8_t i=0; i<pollCount; i++)
+    {
+        // Request an address via the contact node
+        header.type = NETWORK_REQ_ADDRESS;
+        header.reserved = getNodeID();
+        header.to_node = contactNode[i];
+
+        // Do a direct write (no ack) to the contact node. Include the nodeId and address.
+        network.write(header,0,0,contactNode[i]);
+    #ifdef MESH_DEBUG_SERIAL
+        Serial.print( millis() ); Serial.print(F(" MSH: Req addr from ")); Serial.println(contactNode[i],OCT);
+    #elif defined MESH_DEBUG_PRINTF
+        printf("%u MSH: Request address from: 0%o\n",millis(),contactNode[i]);
+    #endif
+
+        timr = millis();
+
+        while(millis()-timr < NETWORK_ADDR_RESPONSE_TIMEOUT)
+        {
+            if( (type = network.update()) == NETWORK_ADDR_RESPONSE)
+            {
+                i=pollCount;
+                break;
+            }
+        }
+        delay(5);
+    }
+
+    if(type != NETWORK_ADDR_RESPONSE)
+    {
+        return 0;
+    }
+
+    //Serial.print("response took");
+    //Serial.println(millis()-timr);
+    #ifdef MESH_DEBUG_SERIAL
+    uint8_t mask = 7;
+    char addrs[5] = "    ";
+    uint8_t count=3;
+    uint16_t newAddr;
+    #endif
+    uint8_t registerAddrCount = 0;
+
+    uint16_t newAddress=0;
+    //memcpy(&addrResponse,network.frame_buffer+sizeof(RF24NetworkHeader),sizeof(addrResponse));
+    memcpy(&newAddress,network.frame_buffer+sizeof(RF24NetworkHeader),sizeof(newAddress));
+
+    auto fbHeader = reinterpret_cast<RF24NetworkHeader*>(network.frame_buffer);
+
+    // Check response to see if address request is for this node
+    if(!newAddress || fbHeader->reserved != getNodeID() )
+    {
+        #ifdef MESH_DEBUG_SERIAL
+        Serial.print(millis());
+        Serial.print(F(" MSH: Attempt Failed. Response for"));
+        Serial.print(fbHeader->reserved);
+        Serial.print("  This NodeID: "); Serial.println(getNodeID());
+        #elif defined MESH_DEBUG_PRINTF
+        printf("%u Response discarded, wrong node 0%o from node 0%o sending node 0%o id %d\n",millis(),newAddress,header.from_node,MESH_DEFAULT_ADDRESS,network.frame_buffer[7]);
+        #endif
+        return 0;
+    }
+    #ifdef MESH_DEBUG_SERIAL
+    Serial.print( millis() ); Serial.print(F(" Set address: "));
+    newAddr = newAddress;
+    while(newAddr)
+    {
+        addrs[count] = (newAddr & mask)+48; //get the individual Octal numbers, specified in chunks of 3 bits, convert to ASCII by adding 48
+        newAddr >>= 3;
+        count--;
+    }
+    Serial.println(addrs);
+    #elif defined (MESH_DEBUG_PRINTF)
+    printf("Set address 0%o rcvd 0%o\n",mesh_address,newAddress);
+    #endif
+    mesh_address = newAddress;
+
+    radio.stopListening();
+    delay(10);
+    network.begin(mesh_address);
+    header.to_node = 00;
+    header.type = MESH_ADDR_CONFIRM;
+
+    while( !network.write(header,0,0) )
+    {
+        if(registerAddrCount++ >= 6 )
+        {
+            network.begin(MESH_DEFAULT_ADDRESS);
+            mesh_address = MESH_DEFAULT_ADDRESS;
+            return false;
+        }
+        delay(3);
+    }
+
+    return true;
+}
+
+/*****************************************************/
+/*
+   bool RF24MeshNode::waitForAvailable(uint32_t timeout){
+
+    unsigned long timer = millis();
+    while(millis()-timer < timeout){
+      network.update();
+      if(network.available()){ return 1; }
+    }
+    if(network.available()){ return 1; }
+    else{  return 0; }
+   }
  */
+/*****************************************************/
 
-/**
- * @example RF24Mesh_Example_Master.ino
- * <b> Arduino Example Sketch </b><br>
- * @note This sketch only functions on -Arduino Due-
- *
- * This example sketch shows how to manually configure a node via RF24Mesh as a master node, which
- * will receive all data from sensor nodes.
- *
- * The nodes can change physical or logical position in the network, and reconnect through different
- * routing nodes as required. The master node manages the address assignments for the individual nodes
- * in a manner similar to DHCP.
- *
- */
+void RF24MeshNode::setNodeID(uint8_t nodeID)
+{
+    _nodeID = nodeID;
+}
 
-/**
-* @example RF24Mesh_Example_Node2Node.ino
-* Example of node to node communication using RF24Mesh
-*/
-
-/**
-* @example RF24Mesh_Example_Node2NodeExtra.ino
-* Extended Example of node to node communication using RF24Mesh
-*/
-
-/**
- * @example RF24Mesh_SerialConfig.ino
- *
- * This example sketch shows how the same sketch can be written to a large number of devices, which are
- * configured later via Serial input.
- *
- */
-
-/**
-* @example RF24Mesh_Example.cpp
-*
-* <b> Raspberry Pi Example Sketch </b><br>
-* This example sketch shows how to manually configure a node via RF24Mesh, and send data to the
-* master node.
-* The nodes will refresh their network address as soon as a single write fails. This allows the
-* nodes to change position in relation to each other and the master node.
-*/
-
-/**
- * @example RF24Mesh_Example_Master.cpp
- *
- * <b> Raspberry Pi Example Sketch </b><br>
- *
- * This example sketch shows how to manually configure a node via RF24Mesh as a master node, which
- * will receive all data from sensor nodes.
- *
- * The nodes can change physical or logical position in the network, and reconnect through different
- * routing nodes as required. The master node manages the address assignments for the individual nodes
- * in a manner similar to DHCP.
- *
- */
-
-/**
-* @example RF24Mesh_Ncurses_Master.cpp
-* A very limited ncurses interface used for initial monitoring/testing of RF24Mesh
-* <img src="tmrh20/RF24Mesh_Ncurses.JPG">
-*/
-
-/**
- * @mainpage Mesh Networking Layer for RF24 Radios
- *
- * This class intends to provide a simple and seamless 'mesh' layer for sensor networks, allowing automatic and dynamic configuration
- * that can be customized to suit many scenarios. It is currently designed to interface directly with with the
- * <a href="http://tmrh20.github.com/RF24Network/">RF24Network Development library</a>, an <a href="http://en.wikipedia.org/wiki/Network_layer">OSI Network Layer</a> using nRF24L01(+) radios driven
- * by the newly optimized <a href="http://tmrh20.github.com/RF24/">RF24</a> library fork.
- *
- * @section Purpose Purpose/Goal
- *
- * Provide a simple user interface for creating dynamic sensor networks with the RF24 and RF24Network libraries.
- *
- * @section Overview RF24Mesh Overview
- * The RF24Network library provides a system of addressing and routing for RF24 radio modules, that allows large wireless sensor networks to be constructed. <br> RF24Mesh
- * provides extended features, including automatic addressing and dynamic configuration of wireless sensors.
- *
- * **How does it work?**<br>
- * The 'master' node keeps track of the unique nodeIDs and the assigned RF24Network addresses. When a node is moved physically, or just loses its connection to the network,
- * it can be set to automatically re-join the mesh, and reconfigure itself within the network.
- *
- * Nodes are assigned a unique number ranging from 1 to 255, and just about everything else, addressing, routing, etc. is managed by the library.
- *
- * In the 'mesh' configuration sensors/nodes can move around physically, far from the 'master node' using other nodes to route traffic over extended distances. Addressing and
- * topology can be reconfigured as connections are broken and re-established within different areas of the network.
- *
- * <b>What works currently? </b>
- * @li Basic 'mesh' functionality using an <b>Arduino or RPi</b> as the master node which will generally send or received data to/from nodes.
- * @li Simple, dynamic addressing based on a pre-assigned unique identifier
- * @li Dynamic/On-the fly configuration of addresses and network topology
- * @li Automatic routing and handling of data - Nodes will join together to extend the range of radio links by routing data as required.
- *
- * <b>Status (Dec 2015)</b>
- * @li RF24Mesh is mostly complete and stable, but is being actively utilized & tested with development ongoing.
- * @li Address assignments are not saved, except on RPi/Linux devices. If the 'master' node goes down, all nodes need to reconnect to the mesh or restart to prevent addressing conflicts.
- *
- *
- * @section More How to learn more
- *
- * @li Try it out!
- * @li <a href="Setup-Config.html">Setup and Configuration</a>
- * @li <a href="General-Usage.html">Usage & Overview </a>
- * @li <a href="classRF24Mesh.html">RF24Mesh Class Documentation</a>
- * @li <a href="http://tmrh20.github.io/RF24Network/">RF24 Network Class Documentation</a>
- * @li <a href="http://tmrh20.github.io/RF24Ethernet/">RF24Ethernet: TCP/IP based Mesh over RF24</a>
- * @li <a href="https://tmrh20.github.io">All Documentation and Downloads</a>
- * @li <a href="https://github.com/TMRh20/RF24Mesh">Source Code</a>
- *
- * @page Setup-Config Setup And Config
- *
- * The initial testing version of RF24Mesh is built as a simple overlay for RF24Network. Users currently need to be familiar with the basics of sending and receiving data via
- * RF24Network, but do not need to understand the topology, routing or addressing systems. RF24Mesh will attempt to construct and maintain a mesh network, keeping all nodes
- * connected together.
- *
- * @section Requirements Requirements
- * <b>Hardware Requirements:</b>  <br>
- * @li 1 Raspberry Pi or Arduino to act as the Master Node <br>
- * @li 1 or more Arduino,RPi,etc. (Sensor Nodes)  <br>
- * @li 1 or more NRF24L01+ radio modules  <br>
- * @li 1 or more various sensors for your sensor nodes  <br>
- *
- * <b>Software Requirements:</b>
- * @li <a href="https://github.com/TMRh20/RF24/archive/master.zip">RF24 Core Radio Library</a>
- * @li <a href="https://github.com/TMRh20/RF24Network/archive/master.zip">RF24Network Library</a>
- * @li <a href="https://github.com/TMRh20/RF24Mesh/archive/master.zip">RF24Mesh - Dynamic Mesh Library</a>
- *
- * @section Installation Installation
- * 1. If not installed, use the Arduino Library Manager, or download and install the RF24, RF24Network, and RF24Mesh libraries per the above links  <br>
- *  <br>
- * 2. Configure and test the hardware using examples from RF24 and RF24Network prior to attempting to use RF24Mesh  <br>
- *    a: <b>In Arduino IDE:</b> File > Examples > RF24 > GettingStarted  <br>
- *    b: <b>RPi:</b> Follow the RF24 instructions on <a href="http://tmrh20.github.io/RF24/RPi.html">GitHub</a>  <br>
- *  <br>
- * 3. Once testing is complete:  <br>
- *    a: <b>Arduino IDE:</b> File > Examples > RF24Mesh > RF24Mesh_Example  <br>
- *    b: <b>RPi:</b> Run 'make' from the examples directory. Then 'sudo ./RF24Mesh_Example_Master' to begin as the master node   <br>
- *    <br>
- * 4. Once configured and running, the Master Node will begin to assign addresses to the sensor nodes, which will find their way onto the network, and
- *    display incoming data from the sensor examples. Usage is very much the same as RF24Network, except for address assignment and network management.
- *
- * @section Config Configuration
- *
- * As per the examples, nodes are configured with a unique value between 1 and 255. This allows them to change positions on the network, while still being identified. <br>
- *
- * For pre-configuration of the mesh, only a few options are available by editing RF24Mesh_config.h prior to compiling: <br>
- *
- * @code
- * #define MESH_MAX_CHILDREN 4
- * @endcode
- * The max_children option restricts the maximum number of child nodes/node and limits the number of available addresses on the network. Max: 4 <br>
- *
- * @code
- * #define MESH_NOMASTER
- * @endcode
- * The nomaster option reduces program space and memory usage. Can be used on any node except for the master (nodeID 0) <br>
- *
- *
- * @li See <a href="General-Usage.html">General Usage</a> for information on how to work with the mesh once connected.
- *
- * @page General-Usage General Usage
- *
- * @section Net_Design Network Design Options
- *
- * 1. **Static Network** (No Mesh):
- * RF24Network can be configured manually, with a static design. RF24Mesh is not used at all. See http://tmrh20.github.io/RF24Network/Addressing.html <br><br>
- *
- * 2. **Static Network w/Dynamic Assignment:**
- * RF24Mesh is only used to acquire an address on startup. Nodes are generally expected to remain stationary. Changes to
- * the network would be addressed manually, by adding, removing, or resetting nodes. Users can choose to use RF24Network functions directly, or use RF24Mesh. <br><br>
- *
- * 3. **Dynamic Network & Assignment:**
- * Nodes join the mesh automatically and re-attach as required. <br><br>
- *
- * 4. **Hybrid Network**:
- * Utilizes a combination of static & dynamic nodes. Requires initial planning and deployment, but can result in a more stable network, easing
- * the use of sleeping nodes. <br><br>
- *
- * @section NetMgmt Network Management
- *
- * RF24Network addresses can be viewed as MAC addresses, and RF24Mesh nodeIDs viewed as static IP addresses. When joining or re-attaching to the network, nodes
- * will request a RF24Network address, and are identified via nodeID.
- *
- * **Raspberry Pi/Linux:** On Linux devices, the RF24Gateway will save address assignments to file (dhcplist.txt) so they will be restored, even if the
- * gateway is restarted. To force network re-convergence, delete the dhcplist.txt file and restart the gateway. If nodes are configured to verify their connection at a set
- * interval, the gateway should be left offline for at least that period of time.
- *
- * **Arduino/AVR:** On all other devices, the address list is not saved. To force network re-convergence, restart the gateway. If nodes are configured to verify their
- * connection at a set interval, the gateway should be left offline for at least that period of time.
- *
- * If a node/nodeID is removed from the network permanently, the address should be released prior to removal. If it is not, the assigned RF24Network address should be
- * written to 0 in the RF24Mesh address list.
- *
- * @section MeshComm Mesh Communication
- *
- * RF24Mesh nodeIDs are unique identifiers, while RF24Network addresses change dynamically within a statically defined structure. Due to this structure, it is simple
- * for any node to communicate with the master node, since the RF24Network address is always known (00). Conversely, the master node maintains a list of every node on the
- * network, so address 'lookups' return immediately.
- *
- * Communication from node-to-node requires address queries to be sent to the master node, since individual nodes may change RF24Network & radio address at any time.
- * Due to the extra data transmissions, node-to-node communication is less efficient.
- *
- * @section General General Usage
- *
- * One thing to keep in mind is the dynamic nature of RF24Mesh, and the need to verify connectivity to the network. For nodes that are constantly transmitting,
- * (every few seconds at most) it is suitable to check the connection, and/or renew the address when connectivity fails. Since data is not saved by the master
- * node, if the master node goes down, all child nodes must renew their address. In this case, as long as the master node is down for a few seconds, the nodes
- * will all begin requesting an address.  <br>
- *
- * Nodes that are not actively transmitting, should be configured to test their connection at predefined intervals, to allow them to reconnect as necessary.<br>
- *
- * In the case of sleeping nodes, or nodes that will only be online temporarily, it is generally suitable to release the address prior to going offline, and
- * requesting an address upon waking. Keep in mind, address requests can generally take anywhere from 10-15ms, up to few seconds in most cases. <br>
- *
- * One of the recently introduced features is the ability to transmit payloads without the network returning a network-ack response. If solely using this method
- * of transmission, the node should also be configured to verify its connection via mesh.checkConnection(); periodically, to ensure connectivity.
- *
- * @section RF24Network RF24Network
- *
- * Beyond requesting and releasing addresses, usage is outlined in the class documentation, and further information regarding RF24Network is available at
- * http://tmrh20.github.io/RF24Network
- *
- *
- *
- */
+/*****************************************************/

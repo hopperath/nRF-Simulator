@@ -38,6 +38,7 @@ set(SOURCE_FILES
         RF24MeshNode_config.h
         RF24MeshNode.h
         RF24MeshNode.cpp
+        RF24MeshMaster.cpp
         RF24MeshMaster_config.h
         RF24MeshMaster.h
         MeshDHCP.cpp

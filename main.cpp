@@ -7,6 +7,8 @@
 #include "RF24.h"
 #include "ether.h"
 #include "RF24Network.h"
+#include "RF24MeshMaster.h"
+#include "RF24MeshNode.h"
 
 using namespace std;
 using namespace chrono;
@@ -16,14 +18,21 @@ int main(int argc, char *argv[])
 {
     Ether* ether = new Ether();
 
-    RF24 radio(9,10,new nRF24l01plus(91,ether));
-    RF24 radio2(9,10,new nRF24l01plus(92,ether));
     //RF24 radio3(9,10,new nRF24l01plus(93,ether));
 
+    RF24 radio(9,10,new nRF24l01plus(91,ether));
     RF24Network network(radio);
-    radio.begin();
-    network.begin(76,00);
+    RF24MeshMaster node00(radio,network);
+    node00.begin();
 
+
+    RF24 radio2(9,10,new nRF24l01plus(92,ether));
+    RF24Network network2(radio2);
+    RF24MeshNode node02(radio2,network2);
+    node02.setNodeID(25);
+    node02.begin();
+
+    /*
     RF24Network network2(radio2);
     radio2.begin();
     network2.begin(76,01);
@@ -73,6 +82,7 @@ int main(int argc, char *argv[])
         printf("from %o buffer2=%s\n",hdr.from_node,buffer);
     }
 
+     */
     return 0;
 }
 

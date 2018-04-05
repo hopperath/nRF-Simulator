@@ -579,13 +579,13 @@ bool RF24Network::write(uint16_t to_node,
     if (directTo==TX_ROUTED && ok && conversion.send_node==to_node && isAckType)
     {
 
-        RF24NetworkHeader* header = (RF24NetworkHeader*) &frame_buffer;
+        auto header = (RF24NetworkHeader*) &frame_buffer;
         header->type = NETWORK_ACK;                    // Set the payload type to NETWORK_ACK
         header->to_node = header->from_node;          // Change the 'to' address to the 'from' address
 
         conversion.send_node = header->from_node;
         conversion.send_pipe = TX_ROUTED;
-        conversion.multicast = 0;
+        conversion.multicast = false;
         logicalToPhysicalAddress(&conversion);
 
         //Write the data using the resulting physical address

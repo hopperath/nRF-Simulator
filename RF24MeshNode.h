@@ -1,7 +1,7 @@
 
 
-#ifndef __RF24MESH_H__
-#define __RF24MESH_H__
+#ifndef __RF24MESHNODE_H__
+#define __RF24MESHNODE_H__
 
 #include <stdio.h>
 #include <stdlib.h>
