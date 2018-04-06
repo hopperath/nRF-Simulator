@@ -15,7 +15,6 @@ MeshNodeMCU::MeshNodeMCU(int id, shared_ptr<Ether> someEther) : ether(someEther)
 
 void MeshNodeMCU::start()
 {
-    setup();
     running = true;
     mcu = thread(&MeshNodeMCU::loop, this);
     mcu.detach();

@@ -7,13 +7,12 @@ using namespace std;
 
 MeshMasterMCU::MeshMasterMCU(shared_ptr<Ether> someEther) : ether(someEther)
 {
-
+    setup();
 }
 
 
 void MeshMasterMCU::start()
 {
-    setup();
     running = true;
     mcu = thread(&MeshMasterMCU::loop, this);
     mcu.detach();
