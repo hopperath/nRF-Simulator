@@ -63,6 +63,10 @@ typedef enum
 
 class RF24
 {
+
+    public:
+       nRF24l01plus* theNRF24l01plus;
+
     private:
     uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
     uint8_t csn_pin; /**< SPI Chip select */
@@ -73,7 +77,6 @@ class RF24
     uint8_t ack_payload_length; /**< Dynamic size of pending ack payload. */
     uint64_t pipe0_reading_address; /**< Last address set on pipe 0 for reading. */
     uint8_t addr_width; /**< The address width to use - 3,4 or 5 bytes. */
-    nRF24l01plus* theNRF24l01plus;
     protected:
 
     /**
@@ -99,30 +102,7 @@ class RF24
      */
     /**@{*/
 
-    /**
-     * Disable dynamically-sized payloads
-     *
-     * This disables dynamic payloads on ALL pipes. Since Ack Payloads
-     * requires Dynamic Payloads, Ack Payloads are also disabled.
-     * If dynamic payloads are later re-enabled and ack payloads are desired
-     * then enableAckPayload() must be called again as well.
-     *
-     */
-    void disableDynamicPayloads();
 
-    /**
-     * Enable dynamic ACKs (single write multicast or unicast) for chosen messages
-     *
-     * @note To enable full multicast or per-pipe multicast, use setAutoAck()
-     *
-     * @warning This MUST be called prior to attempting single write NOACK calls
-     * @code
-     * radio.enableDynamicAck();
-     * radio.write(&data,32,1);  // Sends a payload with no acknowledgement requested
-     * radio.write(&data,32,0);  // Sends a payload using auto-retry/autoACK
-     * @endcode
-     */
-    void enableDynamicAck();
 
     /**
      * This function is mainly used internally to take advantage of the auto payload
@@ -520,6 +500,31 @@ class RF24
     void setChannel(uint8_t channel);
 
     /**
+     * Disable dynamically-sized payloads
+     *
+     * This disables dynamic payloads on ALL pipes. Since Ack Payloads
+     * requires Dynamic Payloads, Ack Payloads are also disabled.
+     * If dynamic payloads are later re-enabled and ack payloads are desired
+     * then enableAckPayload() must be called again as well.
+     *
+     */
+    void disableDynamicPayloads();
+
+    /**
+     * Enable dynamic ACKs (single write multicast or unicast) for chosen messages
+     *
+     * @note To enable full multicast or per-pipe multicast, use setAutoAck()
+     *
+     * @warning This MUST be called prior to attempting single write NOACK calls
+     * @code
+     * radio.enableDynamicAck();
+     * radio.write(&data,32,1);  // Sends a payload with no acknowledgement requested
+     * radio.write(&data,32,0);  // Sends a payload using auto-retry/autoACK
+     * @endcode
+     */
+    void enableDynamicAck();
+
+    /**
      * Set Static Payload Size
      *
      * This implementation uses a pre-stablished fixed payload size for all
@@ -675,6 +680,7 @@ class RF24
      * @warning Does nothing if stdout is not defined.  See fdevopen in stdio.h
      */
     void printDetails(void);
+    void dumpRegisters(const char* label=nullptr);
 
     /**
      * Enter low-power mode

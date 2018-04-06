@@ -137,7 +137,10 @@ uint8_t RF24Network::update(void)
     }
 #endif
 
-    while (radio.isValid() && radio.available(&pipe_num))
+    //printf("%d: RF24Network::update\n",radio.theNRF24l01plus->id);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+
+    while (radio.available(&pipe_num))
     {
 
         if ((frame_size = radio.getDynamicPayloadSize())<sizeof(RF24NetworkHeader))
@@ -226,6 +229,7 @@ uint8_t RF24Network::update(void)
                     // i.e. node_address = MESH_DEFAULT_ADDRESS
                     if (!(networkFlags&FLAG_NO_POLL) && node_address!=MESH_DEFAULT_ADDRESS)
                     {
+                        printf("%d: responding to 194 from %o\n",radio.theNRF24l01plus->id,header->from_node);
                         header->to_node = header->from_node;
                         header->from_node = node_address;
                         delay(parent_pipe);

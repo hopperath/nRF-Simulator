@@ -43,6 +43,7 @@ class nRF24registers
         uint8_t getARD(){return REGISTERS.sSETUP_RETR.sARD;}
         uint8_t getARC(){return REGISTERS.sSETUP_RETR.sARC;}
         uint64_t getTXaddress();
+        uint8_t getENAA(byte pipe);
         bool isACKPayloadEnabled(){return REGISTERS.sFEATURE.sEN_ACK_PAY;}
         bool isDynamicACKEnabled(){return REGISTERS.sFEATURE.sEN_DYN_ACK;}
         bool isDynamicPayloadEnabled(){return REGISTERS.sFEATURE.sEN_DPL;}

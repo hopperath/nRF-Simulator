@@ -46,12 +46,13 @@ void RF24::ce(int level)
     }
 }
 
+
 /****************************************************************************/
 
 uint8_t RF24::read_register(uint8_t reg, uint8_t* buf, uint8_t len)
 {
     byte sentCMD[1] = {(byte) (R_REGISTER|(REGISTER_MASK&reg))};
-    return theNRF24l01plus->Spi_Write(sentCMD, len, buf);
+    return theNRF24l01plus->Spi_Write(sentCMD, sizeof(byte), buf, len);
 }
 
 /****************************************************************************/
@@ -194,7 +195,7 @@ void RF24::print_observe_tx(uint8_t value)
 
 void RF24::print_byte_register(const char* name, uint8_t reg, uint8_t qty)
 {
-    printf("\t%s =", name);
+    printf("%s =", name);
     while (qty--)
     {
         printf(" 0x%02x", read_register(reg++));
@@ -206,15 +207,16 @@ void RF24::print_byte_register(const char* name, uint8_t reg, uint8_t qty)
 
 void RF24::print_address_register(const char* name, uint8_t reg, uint8_t qty)
 {
-    printf("\t%s =", name);
+    printf("%s =", name);
 
+    int addrsize=5;
     while (qty--)
     {
-        uint8_t buffer[5];
-        read_register(reg++, buffer, sizeof buffer);
+        uint8_t buffer[sizeof(uint64_t)];
+        read_register(reg++, buffer, sizeof(buffer));
 
         printf(" 0x");
-        uint8_t* bufptr = buffer + sizeof buffer;
+        uint8_t* bufptr = buffer + sizeof(buffer)-(sizeof(buffer)-addrsize);
         while (--bufptr>=buffer)
         {
             printf("%02x", *bufptr);
@@ -293,6 +295,23 @@ static const char* const rf24_pa_dbm_e_str_P[] = {
         rf24_pa_dbm_e_str_2,
         rf24_pa_dbm_e_str_3,
 };
+
+void RF24::dumpRegisters(const char* label)
+{
+    if (label!=nullptr)
+    {
+        printf("%s",label);
+    }
+    print_address_register("RX_ADDR_P0-1\t", RX_ADDR_P0, 2);
+    print_byte_register("RX_ADDR_P2-5\t", RX_ADDR_P2, 4);
+    print_address_register("TX_ADDR\t\t", TX_ADDR);
+    //print_byte_register(PSTR("RX_PW_P0-6"), RX_PW_P0, 6);
+    print_byte_register("EN_AA\t\t", EN_AA);
+    //print_byte_register(PSTR("EN_RXADDR"), EN_RXADDR);
+    //print_byte_register(PSTR("RF_SETUP"), RF_SETUP);
+    //print_byte_register(PSTR("CONFIG\t"), NRF_CONFIG);
+    //print_byte_register(PSTR("DYNPD/FEATURE"), DYNPD, 2);
+}
 
 void RF24::printDetails(void)
 {

@@ -347,8 +347,8 @@ uint16_t RF24MeshMaster::renewAddress(uint32_t timeout)
             return 0;
         }
         delay(50 + ( (totalReqs+1)*(reqCounter+1)) * 2);
-        (++reqCounter) = reqCounter%4;
-        (++totalReqs) = totalReqs%10;
+        reqCounter = ++reqCounter%4;
+        totalReqs = ++totalReqs%10;
     }
     network.networkFlags &= ~2;
     return mesh_address;

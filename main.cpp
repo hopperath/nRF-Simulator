@@ -9,6 +9,8 @@
 #include "RF24Network.h"
 #include "RF24MeshMaster.h"
 #include "RF24MeshNode.h"
+#include "MeshMasterMCU.h"
+#include "MeshNodeMCU.h"
 
 using namespace std;
 using namespace chrono;
@@ -16,21 +18,25 @@ using namespace chrono;
 
 int main(int argc, char *argv[])
 {
-    Ether* ether = new Ether();
-
-    //RF24 radio3(9,10,new nRF24l01plus(93,ether));
-
-    RF24 radio(9,10,new nRF24l01plus(91,ether));
-    RF24Network network(radio);
-    RF24MeshMaster node00(radio,network);
-    node00.begin();
+    auto ether = shared_ptr<Ether>(new Ether());
 
 
-    RF24 radio2(9,10,new nRF24l01plus(92,ether));
-    RF24Network network2(radio2);
-    RF24MeshNode node02(radio2,network2);
-    node02.setNodeID(25);
-    node02.begin();
+    MeshMasterMCU master(ether);
+    MeshNodeMCU node1(25,ether);
+
+    master.start();
+    this_thread::yield();
+    node1.start();
+
+    this_thread::yield();
+    this_thread::sleep_for(chrono::seconds(2));
+
+    //while(true);
+    printf("Exiting\n");
+    master.stop();
+    node1.stop();
+    this_thread::sleep_for(chrono::seconds(2));
+
 
     /*
     RF24Network network2(radio2);

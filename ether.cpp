@@ -12,7 +12,8 @@ Ether::Ether()
 void Ether::leaveEther()
 {
     printf("Ether::leaveEther msg.addr=%llx\n",mMsg.Address);
-    dispatchMsgEvent.notifyAsync(this, mMsg);
+    //No need for async, in timer thread
+    dispatchMsgEvent.notify(this, mMsg);
 }
 
 void Ether::collisionSig()

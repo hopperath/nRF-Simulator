@@ -353,8 +353,8 @@ uint16_t RF24MeshNode::renewAddress(uint32_t timeout)
             return 0;
         }
         delay(50 + ( (totalReqs+1)*(reqCounter+1)) * 2);
-        (++reqCounter) = reqCounter%4;
-        (++totalReqs) = totalReqs%10;
+        reqCounter = ++reqCounter%4;
+        totalReqs = ++totalReqs%10;
     }
     network.networkFlags &= ~2;
     return mesh_address;
@@ -374,7 +374,9 @@ bool RF24MeshNode::requestAddress(uint8_t level)
     Serial.print(F(" MSH: Poll Level "));
     Serial.println(level);
     #endif
+    radio.dumpRegisters("before multicast\n");
     network.multicast(header,0,0,level);
+    radio.dumpRegisters("after multicast\n");
 
     uint32_t timr = millis();
     uint16_t contactNode[MESH_MAXPOLLS];

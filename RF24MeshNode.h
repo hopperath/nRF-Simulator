@@ -27,6 +27,7 @@
 
 // Max polls
 #define MESH_MAXPOLLS 4
+
 // Time to wait for poll response
 #define MESH_POLL_TIMEOUT 55
 

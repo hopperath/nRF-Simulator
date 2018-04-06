@@ -45,6 +45,10 @@ set(SOURCE_FILES
         MeshDHCP.h
         MeshNode.cpp
         MeshNode.h
+        MeshNodeMCU.h
+        MeshNodeMCU.cpp
+        MeshMasterMCU.h
+        MeshMasterMCU.cpp
         )
 add_executable(nRF_Simulator ${SOURCE_FILES})
 

@@ -24,12 +24,13 @@ nRF24l01plus::nRF24l01plus(int id, Ether* someEther) : theEther(someEther), chip
 
 void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 {
+    //printf("%d: nRF24l01plus::receiveMsgFromEther top\n", id);
     //copy from ether
     rxMsg = shared_ptr<tMsgFrame>(new tMsgFrame(msg));
 
-    if (rxMsg->radioId==0)
+    if (rxMsg->radioId<0)
     {
-        printf("ERROR: radioId=0\n");
+        printf("ERROR: radioId<0\n");
     }
     //Sent from this radio, ignore. Software event system sends to all radios.
     //In the real world the sending radio would not hear its own transmission
@@ -85,11 +86,12 @@ void nRF24l01plus::startPRX()
 
 void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
 {
-    printf("%d: nRF24l01plus::sendAutoAck\n", id);
-    if (theFrame->Packet_Control_Field.NO_ACK)
+    if (theFrame->Packet_Control_Field.NO_ACK || !getENAA(pipe))
     {
         return;
     }
+
+    printf("%d: nRF24l01plus::sendAutoAck\n", id);
 
     auto msg = getAckPacketForPipe(pipe);
 
@@ -158,7 +160,7 @@ void nRF24l01plus::startPTX()
     packetToSend->Address = getTXaddress();
     sendMsgToEther(packetToSend);
     //check if ack expected
-    if ((packetToSend->Packet_Control_Field.NO_ACK==0) && (getARC()!=0))
+    if ((packetToSend->Packet_Control_Field.NO_ACK==0) && (getARC()!=0) && getENAA(0))
     {
         //set for ACK recipt..
         ACK_address = getTXaddress();

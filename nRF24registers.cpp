@@ -108,7 +108,7 @@ void nRF24registers::setCE_HIGH()
 
 void nRF24registers::setCE_LOW()
 {
-    printf("%d: setCE_LOW\n",id);
+    printf("%d: setCE_LOW\n", id);
     CE = false;
     CEset();
 }
@@ -139,56 +139,54 @@ void nRF24registers::write_register(byte* bytes_to_write)
     byte temp;
     bool emitRXTXmodeSignal = false;
     bool emitPWRsig = false;
-    if (CE==false)
+    byte addr = bytes_to_write[0]&0b00011111;
+
+    //printf("%d: reg addr=: 0x%02x\n",id,addr);
+    //no write to these registers
+    if ((addr==eOBSERVE_TX) || (addr==eRPD) || (addr==eFIFO_STATUS))
     {
-        byte addr = bytes_to_write[0]&0b00011111;
+        printf("%d: Register is ObserveTX eRPF or FIFOSTATUS\n", id);
+        return;
+    }
 
-        //printf("%d: reg addr=: 0x%02x\n",id,addr);
-        //no write to these registers
-        if ((addr==eOBSERVE_TX) || (addr==eRPD) || (addr==eFIFO_STATUS))
-        {
-            printf("%d: Register is ObserveTX eRPF or FIFOSTATUS\n", id);
-            return;
-        }
+    byte* where_to_write = (byte*) register_array[addr];
+    if (addr==eRF_CH)
+    {
+        clearPLOS_CNT();
+    }
 
-        byte* where_to_write = (byte*) register_array[addr];
-        if (addr==eRF_CH)
+    if (addr==eCONFIG)
+    {
+        if ((*where_to_write&0b1)!=(*bytes_to_write&0b1))
         {
-            clearPLOS_CNT();
+            // RX/TX mode change
+            emitRXTXmodeSignal = true;
         }
-
-        if (addr==eCONFIG)
+        if ((*where_to_write&0b10)!=(*bytes_to_write&0b10))
         {
-            if ((*where_to_write&0b1)!=(*bytes_to_write&0b1))
-            {
-                // RX/TX mode change
-                emitRXTXmodeSignal = true;
-            }
-            if ((*where_to_write&0b10)!=(*bytes_to_write&0b10))
-            {
-                emitPWRsig = true;
-            }
-        }
-
-        if (addr!=eSTATUS)
-        {
-            where_to_write[0] = bytes_to_write[1];
-        }
-        else
-        {
-            //write to STATUS.. bits are cleared by writing 1 pm the,///
-            temp = bytes_to_write[1]&0b01110000; //clears bit that cant be written to
-            temp = ~temp; //inverts all, 0 become 1 and  leaves those bits alone after AND op,  where 1s are bits will get cleared after AND operation
-            where_to_write[0] &= temp;
-        }
-        //printf("byte to write[1]: 0x%02x  ", bytes_to_write[1]);
-        //printf("where to write[0]: 0x%02x\n", where_to_write[0]);
-        if ((addr==eRX_ADDR_P0) || (addr==eRX_ADDR_P1) || (addr==eTX_ADDR))
-        {
-            *((uint64_t*) where_to_write) = *((uint64_t*) (bytes_to_write + 1));
-            //printf("written: %llx\n", *((uint64_t*) where_to_write));
+            emitPWRsig = true;
         }
     }
+
+    if (addr!=eSTATUS)
+    {
+        where_to_write[0] = bytes_to_write[1];
+    }
+    else
+    {
+        //write to STATUS.. bits are cleared by writing 1 pm the,///
+        temp = bytes_to_write[1]&0b01110000; //clears bit that cant be written to
+        temp = ~temp; //inverts all, 0 become 1 and  leaves those bits alone after AND op,  where 1s are bits will get cleared after AND operation
+        where_to_write[0] &= temp;
+    }
+    //printf("byte to write[1]: 0x%02x  ", bytes_to_write[1]);
+    //printf("where to write[0]: 0x%02x\n", where_to_write[0]);
+    if ((addr==eRX_ADDR_P0) || (addr==eRX_ADDR_P1) || (addr==eTX_ADDR))
+    {
+        *((uint64_t*) where_to_write) = *((uint64_t*) (bytes_to_write + 1));
+        //printf("written: %llx\n", *((uint64_t*) where_to_write));
+    }
+
     if (emitRXTXmodeSignal==true)
     {
         //emit TXmodeSet();
@@ -209,16 +207,16 @@ uint64_t nRF24registers::getTXaddress()
 
 byte nRF24registers::addressToPipe(uint64_t address)
 {
-    //printf("%d: addr=0x%llx reg0=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
-    //printf("%d: addr=0x%llx reg1=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
-    //printf("%d: addr=0x%llx reg2=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P2]));
-    //printf("%d: addr=0x%llx reg3=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P3]));
-    //printf("%d: addr=0x%llx reg4=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P4]));
-    //printf("%d: addr=0x%llx reg5=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P5]));
+    printf("%d: addr=0x%llx reg0=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
+    printf("%d: addr=0x%llx reg1=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
+    printf("%d: addr=0x%llx reg2=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P2]));
+    printf("%d: addr=0x%llx reg3=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P3]));
+    printf("%d: addr=0x%llx reg4=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P4]));
+    printf("%d: addr=0x%llx reg5=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P5]));
 
-    uint64_t msb = *((uint64_t*) register_array[eRX_ADDR_P1]) & 0xFFFFFFFFFFFFFF00;
+    uint64_t msb = *((uint64_t*) register_array[eRX_ADDR_P1])&0xFFFFFFFFFFFFFF00;
 
-    //printf("%d: addr=0x%llx msb=0x%llx\n", id, address, msb);
+    printf("%d: msb=0x%llx\n", id, msb);
     //printf("%d: addr=0x%llx msb=0x%llx\n", id, address, msb | *((byte*) register_array[eRX_ADDR_P2]));
 
     if (REGISTERS.sEN_RXADDR.sERX_P0)
@@ -240,7 +238,7 @@ byte nRF24registers::addressToPipe(uint64_t address)
     if (REGISTERS.sEN_RXADDR.sERX_P2)
     {
 
-        if (address==(msb | *((byte*) register_array[eRX_ADDR_P2])))
+        if (address==(msb|*((byte*) register_array[eRX_ADDR_P2])))
         {
             return 2;
         }
@@ -248,7 +246,7 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P3)
     {
-        if (address==(msb | *((byte*) register_array[eRX_ADDR_P3])))
+        if (address==(msb|*((byte*) register_array[eRX_ADDR_P3])))
         {
             return 3;
         }
@@ -256,7 +254,7 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P4)
     {
-        if (address==(msb | *((byte*) register_array[eRX_ADDR_P4])))
+        if (address==(msb|*((byte*) register_array[eRX_ADDR_P4])))
         {
             return 4;
         }
@@ -264,13 +262,35 @@ byte nRF24registers::addressToPipe(uint64_t address)
 
     if (REGISTERS.sEN_RXADDR.sERX_P5)
     {
-        if (address==(msb | *((byte*) register_array[eRX_ADDR_P5])))
+        if (address==(msb|*((byte*) register_array[eRX_ADDR_P5])))
         {
             return 5;
         }
     }
 
     return 0xFF;
+}
+
+uint8_t nRF24registers::getENAA(byte pipe)
+{
+    switch (pipe)
+    {
+        case 0:
+            return REGISTERS.sEN_AA.sENAA_P0;
+        case 1:
+            return REGISTERS.sEN_AA.sENAA_P1;
+        case 2:
+            return REGISTERS.sEN_AA.sENAA_P2;
+        case 3:
+            return REGISTERS.sEN_AA.sENAA_P3;
+        case 4:
+            return REGISTERS.sEN_AA.sENAA_P4;
+        case 5:
+            return REGISTERS.sEN_AA.sENAA_P5;
+        default:
+            return 0;
+    }
+
 }
 
 uint64_t nRF24registers::getAddressFromPipe_ENAA(byte pipe)

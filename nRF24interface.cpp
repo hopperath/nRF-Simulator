@@ -66,6 +66,7 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             write_register(msg);
             break;
         case eR_REGISTER:
+            //TODO: This should check datamax
             //printf("\n\nCOMMAND SENT: R_REGISTER");
             byte* read_reg;
             read_reg = read_register(msg); //load the register into temp read_reg
@@ -293,10 +294,10 @@ void nRF24interface::write_TX_payload(byte* bytes_to_write, int len)
 
 void nRF24interface::write_no_ack_payload(byte* bytes_to_write, int len)
 {
-    if (!isDynamicACKEnabled())
-    { return; }
-    if (isFIFO_TX_FULL())
-    { return; }
+    if (!isDynamicACKEnabled() || isFIFO_RX_FULL())
+    {
+        return;
+    }
     newFrame(0, len, nextPID(), 1, bytes_to_write);
 }
 
