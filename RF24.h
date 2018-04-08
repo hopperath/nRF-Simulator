@@ -18,6 +18,7 @@
 #include "RF24_config.h"
 #include "nRF24l01plus.h"
 #include "nRF24L01.h"
+#include "MCUClock.h"
 
 #define LOW 0
 #define HIGH 1
@@ -64,8 +65,11 @@ typedef enum
 class RF24
 {
 
+
     public:
-       nRF24l01plus* theNRF24l01plus;
+       nRF24l01plus* rf24;
+       MCUClock mcuClock;
+       uint32_t millis();
 
     private:
     uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
@@ -311,7 +315,7 @@ class RF24
      * @param _cepin The pin attached to Chip Enable on the RF module
      * @param _cspin The pin attached to Chip Select
      */
-    RF24(uint8_t _cepin, uint8_t _cspin, nRF24l01plus* theNRFsim);
+    RF24(uint8_t _cepin, uint8_t _cspin, nRF24l01plus* theNRFsim, MCUClock& mcuClock);
 
     /**
      * Begin operation of the chip

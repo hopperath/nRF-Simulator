@@ -8,9 +8,13 @@
 #include <thread>
 #include <memory>
 #include "RF24MeshNode.h"
+#include "MCUClock.h"
 
-class MeshNodeMCU
+class MCUMeshNode
 {
+    public:
+       MCUClock clock;
+
     private:
        std::unique_ptr<RF24> radio;
        std::unique_ptr<RF24Network> network;
@@ -23,7 +27,7 @@ class MeshNodeMCU
        std::thread mcu;
 
     public:
-       MeshNodeMCU(int id, std::shared_ptr<Ether> someEther);
+       MCUMeshNode(int id, std::shared_ptr<Ether> someEther);
        void start();
        void stop();
     protected:

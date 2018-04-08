@@ -207,16 +207,16 @@ uint64_t nRF24registers::getTXaddress()
 
 byte nRF24registers::addressToPipe(uint64_t address)
 {
-    printf("%d: addr=0x%llx reg0=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
-    printf("%d: addr=0x%llx reg1=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
-    printf("%d: addr=0x%llx reg2=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P2]));
-    printf("%d: addr=0x%llx reg3=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P3]));
-    printf("%d: addr=0x%llx reg4=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P4]));
-    printf("%d: addr=0x%llx reg5=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P5]));
+    //printf("%d: addr=0x%llx reg0=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
+    //printf("%d: addr=0x%llx reg1=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
+    //printf("%d: addr=0x%llx reg2=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P2]));
+    //printf("%d: addr=0x%llx reg3=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P3]));
+    //printf("%d: addr=0x%llx reg4=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P4]));
+    //printf("%d: addr=0x%llx reg5=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P5]));
 
     uint64_t msb = *((uint64_t*) register_array[eRX_ADDR_P1])&0xFFFFFFFFFFFFFF00;
 
-    printf("%d: msb=0x%llx\n", id, msb);
+    //printf("%d: msb=0x%llx\n", id, msb);
     //printf("%d: addr=0x%llx msb=0x%llx\n", id, address, msb | *((byte*) register_array[eRX_ADDR_P2]));
 
     if (REGISTERS.sEN_RXADDR.sERX_P0)

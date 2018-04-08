@@ -102,13 +102,13 @@ const std::vector<shared_ptr<MeshNode>>& MeshDHCP::getAddressList()
 void MeshDHCP::printAddressList()
 {
     int cnt=1;
-    printf("  i  NodeID   Addr   State\n" );
+    printf("  i  NodeID   Addr    State\n" );
     for(auto& item : mNodes)
     {
         MeshNode& node = *item;
         if (node.netAddress!=0)
         {
-            printf("%3d:   %3d     0%o       %c\n",cnt++,node.nodeId,node.netAddress, node.state==MeshNode::CONFIRMED ? 'C' : 'U');
+            printf("%3d:   %3d     0%-5o   %c\n",cnt++,node.nodeId,node.netAddress, node.state==MeshNode::CONFIRMED ? 'C' : 'U');
         }
     }
 }
@@ -163,7 +163,7 @@ void MeshDHCP::DHCP(RF24Network& network)
     if(from_id == 0)
     {
 #ifdef MESH_DEBUG_PRINTF
-        printf("MSH: Invalid id 0 rcvd\n");
+        printf("%d: MSH: Invalid id 0 rcvd\n",network.rf24id);
 #endif
         return;
     }
@@ -192,14 +192,14 @@ void MeshDHCP::DHCP(RF24Network& network)
     }
 
    #ifdef MESH_DEBUG_PRINTF
-    printf("%u MSH: Rcv addr req from_id %d from_node 0%o\n", millis(), from_id, header.from_node);
+    printf("%d: %u MSH: Rcv addr req from_id %d from_node 0%o\n", network.rf24id, network.millis(), from_id, header.from_node);
    #endif
 
     for(uint16_t i=MESH_MAX_CHILDREN+extraChild; i> 0; i--)  // For each of the possible addresses (5 max)
 
     {
         newAddress = fwd_by | (i << shiftVal);
-        printf("fwd_by=0%o  newAddress=0%o\n",fwd_by,newAddress);
+        printf("%d: fwd_by=0%o  newAddress=0%o\n",network.rf24id,fwd_by,newAddress);
         if(!newAddress || newAddress == MESH_DEFAULT_ADDRESS)
         {
             //printf("dumped 0%o\n",newAddress);
@@ -230,7 +230,7 @@ void MeshDHCP::DHCP(RF24Network& network)
             setAddress(from_id,newAddress,MeshNode::UNCONFIRMED);
 
 #ifdef MESH_DEBUG_PRINTF
-            printf("Sent to 0%o phys: 0%o new: 0%o id: %d\n", header.to_node,MESH_DEFAULT_ADDRESS,newAddress,header.reserved);
+            printf("%d: Sent to 0%o phys: 0%o new: 0%o id: %d\n", network.rf24id, header.to_node,MESH_DEFAULT_ADDRESS,newAddress,header.reserved);
 #endif
             break;
         }

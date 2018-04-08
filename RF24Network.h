@@ -175,6 +175,8 @@
 
  #define FLAG_NO_POLL 8
 
+#define TX_TIMEOUT 25
+
 class RF24;
 
 /**
@@ -186,6 +188,7 @@ class RF24;
  */
 struct RF24NetworkHeader
 {
+
   uint16_t from_node; /**< Logical address where the message was generated */
   uint16_t to_node; /**< Logical address where the message is going */
   uint16_t id; /**< Sequential message ID, incremented every time a new frame is constructed */
@@ -353,6 +356,8 @@ class RF24Network
   /**@{*/
 
 public:
+    MCUClock mcuClock;
+    uint32_t millis();
   /**
    * Construct the network
    *
@@ -360,7 +365,7 @@ public:
    *
    */
 
-  RF24Network( RF24& _radio );
+  RF24Network( RF24& _radio, uint16_t _txTimeout, MCUClock& clock);
 
   /**
    * Bring up the network using the current radio frequency/channel.
@@ -386,10 +391,8 @@ public:
    *
    */
 
-  inline void begin(uint16_t _node_address){
-	  begin(USE_CURRENT_CHANNEL,_node_address);
-  }
-
+  void begin(uint16_t _node_address);
+  void begin(uint16_t _node_address, uint16_t _txTimeout);
   /**
    * Main layer loop
    *
@@ -534,7 +537,7 @@ public:
    *
    */
 
-  uint32_t txTimeout; /**< Network timeout value */
+  uint16_t txTimeout; /**< Network timeout value */
 
   /**
    * This only affects payloads that are routed by one or more nodes.
@@ -631,6 +634,7 @@ public:
    * Provided a node address and a pipe number, will return the RF24Network address of that child pipe for that node
    */
    uint16_t addressOfPipe( uint16_t node,uint8_t pipeNo );
+   uint8_t addressToLevel(uint16_t node_addr);
 
    /**
     * @note Addresses are specified in octal: 011, 034
@@ -667,7 +671,10 @@ public:
    * @param _node_address The logical address of this node
    *
    */
-  void begin(uint8_t _channel, uint16_t _node_address );
+  void begin(uint8_t _channel, uint16_t _node_address , uint16_t txTimeout=TX_TIMEOUT);
+
+  uint64_t pipe_address(uint16_t node, uint8_t pipe);
+  uint16_t levelToAddress(uint8_t level);
 
   /**@}*/
   /**
@@ -783,7 +790,6 @@ public:
 
   bool logicalToPhysicalAddress(logicalToPhysicalStruct *conversionInfo);
 
-
   RF24& radio; /**< Underlying radio driver, provides link/physical layers */
 #if defined (DUAL_HEAD_RADIO)
   RF24& radio1;
@@ -830,8 +836,8 @@ public:
   #endif
 
 public:
-
-
+    //Radioid for logging
+    int rf24id;
 
 };
 

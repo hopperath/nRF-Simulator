@@ -144,18 +144,35 @@ uint8_t nRF24interface::read_RX_payload_width()
     {
         return 0;
     }
-    auto temp = RX_FIFO.front();
 
-    return temp->Packet_Control_Field.Payload_length;
+    lock_guard<mutex> lock_rx_fifo(rx_mutex);
+
+    if (RX_FIFO.empty())
+    {
+        return 0;
+    }
+    else
+    {
+        return RX_FIFO.front()->Packet_Control_Field.Payload_length;
+    }
 }
 
 void nRF24interface::removeTXPacket(shared_ptr<tMsgFrame> msgFrame)
 {
     shared_ptr<tMsgFrame> temp;
+
+    lock_guard<mutex> lock(tx_mutex);
+
     auto sizeOfTXfifo = TX_FIFO.size();
     int i = 0;
+
     while (i++<sizeOfTXfifo)
     {
+        if (TX_FIFO.front()==msgFrame)
+        {
+            TX_FIFO.pop();
+        }
+        /*
         if (TX_FIFO.front()==msgFrame)
         {
             TX_FIFO.pop();
@@ -180,17 +197,34 @@ void nRF24interface::removeTXPacket(shared_ptr<tMsgFrame> msgFrame)
                 setTX_EMPTY();
             }
         }
+         */
 
         //Push to back
-        temp = TX_FIFO.front();
-        TX_FIFO.pop();
-        TX_FIFO.push(temp);
+        if (!TX_FIFO.empty())
+        {
+            temp = TX_FIFO.front();
+            TX_FIFO.pop();
+            TX_FIFO.push(temp);
+        }
+    }
+
+
+    if (TX_FIFO.size()==0)
+    {
+        setTX_EMPTY();
+    }
+
+    if (TX_FIFO.size()<3 && sizeOfTXfifo==3)
+    {
+        clearTX_FULL_IRQ();
+        clearTX_FULL();
     }
 }
 
 shared_ptr<tMsgFrame> nRF24interface::getTXpacket(uint64_t address)
 {
     printf("%u: getTXPacket looking for addr=0x%llx\n", id, address);
+    lock_guard<mutex> lock(tx_mutex);
     if (TX_FIFO.empty()==true)
     {
         return nullptr; //nothing to send
@@ -219,6 +253,8 @@ shared_ptr<tMsgFrame> nRF24interface::read_RX_payload()
 {
     if (isPRIM_RX() || (isACKPayloadEnabled() && isDynamicPayloadEnabled()))
     {
+        lock_guard<mutex> lock(rx_mutex);
+
         if (RX_FIFO.empty())
         {
             return nullptr;
@@ -247,10 +283,13 @@ shared_ptr<tMsgFrame> nRF24interface::read_RX_payload()
 
 void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, uint8_t noAckFlag, uint8_t* Payload)
 {
+    lock_guard<mutex> lock(tx_mutex);
+
     auto theFrame = shared_ptr<tMsgFrame>(new tMsgFrame);
     int i = 0;
     while ((i<(PayLength)) && (i<32))
-    {//writes all the bytes into the payload
+    {
+        //writes all the bytes into the payload
         theFrame->Payload[i] = Payload[i];
         i++;
     }
@@ -264,6 +303,7 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, 
     theFrame->Packet_Control_Field.PID = pid;
     //Set Address
     theFrame->Address = Address;
+
     TX_FIFO.push(theFrame);
 
     printf("%u: newFrame push addr=0x%llx, len=%u, pid=%u, noAck=%u\n", id, Address, PayLength, pid, noAckFlag);
@@ -288,7 +328,9 @@ uint8_t nRF24interface::nextPID()
 void nRF24interface::write_TX_payload(byte* bytes_to_write, int len)
 {
     if (isFIFO_TX_FULL())
-    { return; }
+    {
+        return;
+    }
     newFrame(0, len, nextPID(), 0, bytes_to_write);
 }
 
@@ -327,9 +369,11 @@ void nRF24interface::write_ack_payload(byte* bytes_to_write, int len)
 }
 
 void nRF24interface::flush_rx()
-{/*****check if device is in RX mode*/
+{
+/*****check if device is in RX mode*/
     if (isPRIM_RX()==1)
     {
+        lock_guard<mutex> lock(rx_mutex);
         while (!RX_FIFO.empty())
         {
             auto temp = RX_FIFO.front();
@@ -341,9 +385,11 @@ void nRF24interface::flush_rx()
 }
 
 void nRF24interface::flush_tx()
-{/********chec if device is in TX mode*******************/
+{
+    /********chec if device is in TX mode*******************/
     if (isPRIM_RX()==0)
     {
+        lock_guard<mutex> lock(tx_mutex);
         while (!TX_FIFO.empty())
         {
             TX_FIFO.pop();
@@ -409,6 +455,7 @@ bool nRF24interface::receive_frame(shared_ptr<tMsgFrame> theFrame, byte pipe)
         setRX_P_NO(pipe);
     }
     printf("%d: nRF24interface::push rx_frame\n", id);
+    lock_guard<mutex> lock(rx_mutex);
     RX_FIFO.push(theFrame);
 
     if (RX_FIFO.size()==3)

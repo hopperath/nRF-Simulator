@@ -39,7 +39,12 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
         return;
     }
 
-    printf("%d: nRF24l01plus::receiveMsgFromEther msg=%s collision=%d\n", id, rxMsg->toString().c_str(), collision);
+    printf("%d: nRF24l01plus::receiveMsgFromEther msg=%s collision=%d mode=%s %s\n", id, rxMsg->toString().c_str(), collision,stateToString(radioState),(radioState==S_RX_MODE)?"":"ignored");
+
+    if (radioState!=S_RX_MODE)
+    {
+        return;
+    }
 
     if (!collision)
     {
@@ -67,7 +72,7 @@ void nRF24l01plus::startPRX()
     else
     {
         byte pipe = addressToPipe(rxMsg->Address);
-        printf("%d: addr=0x%llx pipe=0x%x\n", id, rxMsg->Address, pipe);
+        printf("%d: addr=0x%llx pipe=%d %s\n", id, rxMsg->Address, pipe, (pipe==0xFF)?"ignoring":"");
         //check if address is one off the pipe addresses
         if (pipe!=0xFF)
         {
@@ -76,10 +81,12 @@ void nRF24l01plus::startPRX()
             receive_frame(rxMsg, pipe);
             sendAutoAck(rxMsg, pipe);
         }
+        /*
         else
         {
-            printf("%d: ignoring pkt\n",id);
+            printf("%d: ignoring pkt from 0x%llx\n",id,rxMsg->Address);
         }
+         */
     }
     rxMsg = nullptr;
 }
@@ -182,7 +189,7 @@ void nRF24l01plus::startPTX()
 
 /*
  * in PTX if CE is set HIGH and there is a packet waiting transmit packet
- *
+ * this only changes state based on reading register values. Ok on MCU thread.
  */
 void nRF24l01plus::CEset()
 {
@@ -385,7 +392,7 @@ void nRF24l01plus::startTimer(int time)
 {
     if (time>0)
     {
-        printf("%d: nRF24l01+::startTimer %d\n", id, time);
+        printf("%d: nRF24l01+::startAckTimer %d\n", id, time);
         theTimer.setStartInterval(time);
         theTimer.setPeriodicInterval(0);
         theTimer.start(*noACKalarmCallback);
@@ -416,7 +423,7 @@ void nRF24l01plus::processCmd()
             }
             else
             {
-                printf("%d: not in TX_MODE\n", id);
+                printf("%d: not in TX_MODE mode=%s\n", id, stateToString(radioState));
             }
             break;
         case PRX:
@@ -426,7 +433,7 @@ void nRF24l01plus::processCmd()
             }
             else
             {
-                printf("%d: not in RX_MODE\n", id);
+                printf("%d: not in RX_MODE mode=%s\n", id, stateToString(radioState));
             }
             break;
     }

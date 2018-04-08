@@ -2,6 +2,7 @@
 #include <string>
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 #include "nRF24l01plus.h"
 #include "RF24.h"
@@ -9,51 +10,78 @@
 #include "RF24Network.h"
 #include "RF24MeshMaster.h"
 #include "RF24MeshNode.h"
-#include "MeshMasterMCU.h"
-#include "MeshNodeMCU.h"
+#include "MCUMeshMaster.h"
+#include "MCUMeshNode.h"
 
 using namespace std;
 using namespace chrono;
 
+const int startNodeID = 25;
+const int totalNodes = 1;
+
+bool startMaster = true;
 
 int main(int argc, char *argv[])
 {
+    printf("Thread supported = %d\n",std::thread::hardware_concurrency());
     auto ether = shared_ptr<Ether>(new Ether());
 
 
-    MeshMasterMCU master(ether);
-    MeshNodeMCU node1(25,ether);
+    vector<shared_ptr<MCUMeshNode>> nodes;
+    MCUMeshMaster master(ether);
 
-    master.start();
+    if (startMaster)
+    {
+        master.start();
+        this_thread::yield();
+    }
+
+    for (int i=0; i<totalNodes; i++)
+    {
+        nodes.push_back(shared_ptr<MCUMeshNode>(new MCUMeshNode(startNodeID+i,ether)));
+    }
+
+
+
+    for (shared_ptr<MCUMeshNode> node: nodes)
+    {
+        node->start();
+        this_thread::yield();
+        this_thread::sleep_for(chrono::seconds(1));
+    }
+
+    while(true)
+    {
+        fflush(stdout);
+        this_thread::sleep_for(chrono::seconds(1));
+    };
+
+
+
+    printf("Sleeping");
     this_thread::yield();
-    node1.start();
+    this_thread::sleep_for(chrono::seconds(15));
 
-    this_thread::yield();
-    this_thread::sleep_for(chrono::seconds(2));
 
-    //while(true);
-    printf("Exiting\n");
-    master.stop();
-    node1.stop();
-    this_thread::sleep_for(chrono::seconds(2));
 
 
     /*
-    RF24Network network2(radio2);
-    radio2.begin();
-    network2.begin(76,01);
+    //while(true);
+    printf("\nExiting\n");
+    master.stop();
+    for (shared_ptr<MCUMeshNode> node: nodes)
+    {
+        node->stop();
+    }
+    this_thread::sleep_for(chrono::seconds(2));
+     */
 
-    //RF24Network network3(radio3);
-    //network3.begin(76,011);
 
-    RF24NetworkHeader header;
-    header.from_node = 00;
-    header.to_node = 01;
-    header.type = 90;
 
-    char msg[]="netpayload01";
-    network.write(header,msg,sizeof(msg));
 
+
+
+    /*
     auto start = steady_clock::now();
 
     auto started_waiting_at = steady_clock::now();
@@ -82,10 +110,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        char buffer[20];
-        RF24NetworkHeader hdr;
-        network2.read(hdr,buffer,sizeof(buffer));
-        printf("from %o buffer2=%s\n",hdr.from_node,buffer);
+
     }
 
      */

@@ -81,6 +81,10 @@ class RF24MeshMaster
      */
     /**@{*/
     public:
+
+    MCUClock mcuClock;
+    uint32_t millis();
+
     /**
      * Construct the mesh:
      *
@@ -93,7 +97,7 @@ class RF24MeshMaster
      * @param _network The underlying network instance
      */
 
-    RF24MeshMaster(RF24& _radio, RF24Network& _network);
+    RF24MeshMaster(RF24& _radio, RF24Network& _network, MCUClock& _clock);
 
     /**
      * Call this in setup() to configure the mesh and request an address.  <br>

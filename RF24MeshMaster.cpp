@@ -12,8 +12,14 @@ extern unsigned int millis();
 using namespace std;
 
 
-RF24MeshMaster::RF24MeshMaster( RF24& _radio,RF24Network& _network ) : radio(_radio),network(_network)
+RF24MeshMaster::RF24MeshMaster( RF24& _radio,RF24Network& _network, MCUClock& clock ) : radio(_radio),network(_network), mcuClock(clock)
 {
+}
+
+
+uint32_t RF24MeshMaster::millis()
+{
+    return mcuClock.millis();
 }
 
 

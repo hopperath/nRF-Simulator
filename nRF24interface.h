@@ -16,6 +16,8 @@ class nRF24interface : public nRF24registers
         //interface registers
         std::queue<std::shared_ptr<tMsgFrame>> RX_FIFO;
         std::queue<std::shared_ptr<tMsgFrame>> TX_FIFO;
+        std::mutex tx_mutex;
+        std::mutex rx_mutex;
         uint8_t PID;
 
 

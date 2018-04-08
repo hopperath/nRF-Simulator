@@ -10,8 +10,10 @@
 #include "RF24MeshMaster.h"
 
 
-class MeshMasterMCU
+class MCUMeshMaster
 {
+     public:
+        MCUClock clock;
      private:
         std::unique_ptr<RF24> radio;
         std::unique_ptr<RF24Network> network;
@@ -24,7 +26,7 @@ class MeshMasterMCU
         std::thread mcu;
 
      public:
-        MeshMasterMCU(std::shared_ptr<Ether> someEther);
+        MCUMeshMaster(std::shared_ptr<Ether> someEther);
         void start();
         void stop();
      protected:
