@@ -51,6 +51,8 @@ set(SOURCE_FILES
         MCUMeshMaster.cpp
         MCUClock.cpp
         MCUClock.h
+        ThreadNames.cpp
+        ThreadNames.h
         )
 add_executable(nRF_Simulator ${SOURCE_FILES})
 

@@ -1,6 +1,8 @@
 #include <Poco/Delegate.h>
+#include <iomanip>
 #include "nRF24l01plus.h"
 #include "ether.h"
+#include "ThreadNames.h"
 
 using namespace std;
 using namespace Poco;
@@ -11,7 +13,9 @@ nRF24l01plus::nRF24l01plus(int id, Ether* someEther, MCUClock& clock) : theEther
     //ctor
     this->id = id;
 
-    printf("%s %s\n", logHdr().c_str(), stateToString(radioState));
+    ThreadNames::setName(chip.get_id(),string("rf")+to_string(id));
+
+    printf("%s %s\n", LOGHDR, stateToString(radioState));
     //inbound events
     theEther->dispatchMsgEvent += Poco::delegate(this, &nRF24l01plus::receiveMsgFromEther);
     theEther->collisionEvent += Poco::delegate(this, &nRF24l01plus::setCollision);
@@ -26,7 +30,7 @@ string nRF24l01plus::logHdr()
 {
     ostringstream hdr;
     //hdr << id << ": " << millis() << ": t" << this_thread::get_id() <<": ";
-    hdr << id << ": " << millis() << ":";
+    hdr << setw(2) << id << ": " << setw(5) << millis() << ":" <<setw(5)<< ThreadNames::getName() << ":";
     return hdr.str();
 }
 
@@ -38,7 +42,7 @@ uint32_t nRF24l01plus::millis()
 
 void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 {
-    //printf("%s nRF24l01plus::receiveMsgFromEther top\n", logHdr().c_str());
+    //printf("%s nRF24l01plus::receiveMsgFromEther top\n", LOGHDR);
     //copy from ether
     rxMsg = shared_ptr<tMsgFrame>(new tMsgFrame(msg));
 
@@ -53,7 +57,7 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
         return;
     }
 
-    printf("%s nRF24l01plus::receiveMsgFromEther msg=%s collision=%d mode=%s %s\n", logHdr().c_str(), rxMsg->toString().c_str(), collision,stateToString(radioState),(radioState==S_RX_MODE)?"":"ignored");
+    printf("%s nRF24l01plus::receiveMsgFromEther msg=%s collision=%d mode=%s %s\n", LOGHDR, rxMsg->toString().c_str(), collision,stateToString(radioState),(radioState==S_RX_MODE)?"":"ignored");
 
     if (radioState!=S_RX_MODE)
     {
@@ -71,12 +75,12 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 //This only gets called in S_RX_MODE
 void nRF24l01plus::startPRX()
 {
-    printf("%s pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d ackAddr=0x%llx\n", logHdr().c_str(), isPWRUP(), getCE(), radioState==S_RX_MODE, waitingForAck, ACK_address);
+    printf("%s pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d ackAddr=0x%llx\n", LOGHDR, isPWRUP(), getCE(), radioState==S_RX_MODE, waitingForAck, ACK_address);
     if (waitingForAck)
     {
         //waiting for ack
         byte pipe = addressToPipe(rxMsg->Address);
-        printf("%s addr=0x%llx  ack_addr=0x%llx\n", logHdr().c_str(), rxMsg->Address, ACK_address);
+        printf("%s addr=0x%llx  ack_addr=0x%llx\n", LOGHDR, rxMsg->Address, ACK_address);
         if (rxMsg->Address==ACK_address)
         {
             //addess is the P0 address, this is ACK packet
@@ -86,7 +90,7 @@ void nRF24l01plus::startPRX()
     else
     {
         byte pipe = addressToPipe(rxMsg->Address);
-        printf("%s addr=0x%llx pipe=%d %s\n", logHdr().c_str(), rxMsg->Address, pipe, (pipe==0xFF)?"ignoring":"");
+        printf("%s addr=0x%llx pipe=%d %s\n", LOGHDR, rxMsg->Address, pipe, (pipe==0xFF)?"ignoring":"");
         //check if address is one off the pipe addresses
         if (pipe!=0xFF)
         {
@@ -112,14 +116,14 @@ void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
         return;
     }
 
-    printf("%s nRF24l01plus::sendAutoAck\n", logHdr().c_str());
+    printf("%s nRF24l01plus::sendAutoAck\n", LOGHDR);
 
     auto msg = getAckPacketForPipe(pipe);
 
     //Ack packet
     if (msg)
     {
-        printf("%s nRF24l01plus::send ackPayload\n", logHdr().c_str());
+        printf("%s nRF24l01plus::send ackPayload\n", LOGHDR);
         ackPktFrame = msg;
         ackPktFrame->Packet_Control_Field.NO_ACK = 0;
         setTX_MODE();
@@ -128,7 +132,7 @@ void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
     }
     else //Simple Ack
     {
-        printf("%s nRF24l01plus::send simpleAck\n", logHdr().c_str());
+        printf("%s nRF24l01plus::send simpleAck\n", LOGHDR);
         auto ackFrame = shared_ptr<tMsgFrame>(new tMsgFrame);
         ackFrame->radioId = id;
         ackFrame->Packet_Control_Field.Payload_length = 0;
@@ -158,7 +162,7 @@ void nRF24l01plus::setTX_MODE()
 
 void nRF24l01plus::sendMsgToEther(shared_ptr<tMsgFrame> theMSG)
 {
-    printf("%s sendMsgToEther:msg.addr=%llx\n", logHdr().c_str(), theMSG->Address);
+    printf("%s sendMsgToEther:msg.addr=%llx\n", LOGHDR, theMSG->Address);
     sendMsgEvent.notifyAsync(this, *theMSG);
 }
 
@@ -168,7 +172,7 @@ void nRF24l01plus::sendMsgToEther(shared_ptr<tMsgFrame> theMSG)
  */
 void nRF24l01plus::startPTX()
 {
-    printf("%s nRF24l01plus::startPTX\n", logHdr().c_str());
+    printf("%s nRF24l01plus::startPTX\n", LOGHDR);
 
     //Does not remove from TX_FIFO, per datasheet
     auto packetToSend = getTXpacket();
@@ -187,9 +191,9 @@ void nRF24l01plus::startPTX()
         ACK_address = getTXaddress();
         waitingForAck = true;
         clearARC_CNT();
-        printf("%s Autoretry delay ARD=%u\n", logHdr().c_str(), getARD());
+        printf("%s Autoretry delay ARD=%u\n", LOGHDR, getARD());
         setRX_MODE();
-        startTimer(getARD() * 10);
+        startTimer(getARD() * ACK_TIMEOUT_FACTOR);
         TXpacket = packetToSend;
     }
     else
@@ -207,7 +211,7 @@ void nRF24l01plus::startPTX()
  */
 void nRF24l01plus::CEset()
 {
-    printf("%s CEset CE=%d state=%s\n", logHdr().c_str(), getCE(),stateToString());
+    printf("%s CEset CE=%d state=%s\n", LOGHDR, getCE(),stateToString());
 
     //TODO: this should be a "shockburst mode" flag.
     //Ignore CE if processing
@@ -230,7 +234,7 @@ void nRF24l01plus::CEset()
  */
 void nRF24l01plus::RXTXmodeSet()
 {
-    printf("%s RXTXmodeSet PRIM_RX=%d state=%s\n", logHdr().c_str(), isPRIM_RX(), stateToString());
+    printf("%s RXTXmodeSet PRIM_RX=%d state=%s\n", LOGHDR, isPRIM_RX(), stateToString());
     //Only changes if in standby_1 i think...
     if (radioState==S_STANDBY_I)
     {
@@ -240,7 +244,7 @@ void nRF24l01plus::RXTXmodeSet()
 
 void nRF24l01plus::TXPacketAdded()
 {
-    printf("%s TXPacketAdded state=%s\n", logHdr().c_str(), stateToString());
+    printf("%s TXPacketAdded state=%s\n", LOGHDR, stateToString());
     if (radioState==S_STANDBY_II)
     {
         setRadioState(S_TX_MODE);
@@ -250,7 +254,7 @@ void nRF24l01plus::TXPacketAdded()
 
 void nRF24l01plus::PWRset()
 {
-    printf("%s PWRset PWR=%d state=%s\n", logHdr().c_str(), isPWRUP(), stateToString());
+    printf("%s PWRset PWR=%d state=%s\n", LOGHDR, isPWRUP(), stateToString());
     if (isPWRUP())
     {
         setRadioState(S_STANDBY_I);
@@ -276,13 +280,13 @@ void nRF24l01plus::setRadioState(int state)
         case S_TX_MODE:
             if (radioState!=state)
             {
-                printf("%s %s -> %s\n", logHdr().c_str(), stateToString(radioState), stateToString(state));
+                printf("%s %s -> %s\n", LOGHDR, stateToString(radioState), stateToString(state));
             }
             radioState = state;
             break;
 
         default:
-            printf("%s bad radio state=%d!", logHdr().c_str(), state);
+            printf("%s bad radio state=%d!", LOGHDR, state);
     }
 }
 
@@ -312,10 +316,10 @@ const char* nRF24l01plus::stateToString(int state)
 void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
 {
 
-    printf("%s nRF24l01+::ackReceived\n", logHdr().c_str());
+    printf("%s nRF24l01+::ackReceived\n", LOGHDR);
     if (theMSG->Packet_Control_Field.Payload_length==0)
     {
-        printf("%s nRF24l01+::simpleAck received\n", logHdr().c_str());
+        printf("%s nRF24l01+::simpleAck received\n", LOGHDR);
         //regular ACK received :D
     }
     else
@@ -323,7 +327,7 @@ void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
         //could be ACK with payload
         if (isACKPayloadEnabled() && isDynamicPayloadEnabled())
         {
-            printf("%s nRF24l01+::ackPayload received\n", logHdr().c_str());
+            printf("%s nRF24l01+::ackPayload received\n", LOGHDR);
             receive_frame(theMSG, pipe);
         }
     }
@@ -343,7 +347,7 @@ void nRF24l01plus::removeTXPacket(shared_ptr<tMsgFrame> frame)
 //TODO: Go to proper state after trying all items? does it try them all? in FIFO, i.e. CE=1
 void nRF24l01plus::standbyTransition()
 {
-    printf("%s PWR=%d PRIM_RX=%d CE=%d isFIFO_TX_EMPTY=%u\n", logHdr().c_str(),isPWRUP(),isPRIM_RX(),getCE(),isFIFO_TX_EMPTY());
+    printf("%s PWR=%d PRIM_RX=%d CE=%d isFIFO_TX_EMPTY=%u\n", LOGHDR,isPWRUP(),isPRIM_RX(),getCE(),isFIFO_TX_EMPTY());
 
     if (getCE())
     {
@@ -377,7 +381,7 @@ void nRF24l01plus::noACKalarm(Poco::Timer& timer)
 
 void nRF24l01plus::processNoAck()
 {
-    printf("%s nRF24l01+::noACKalarm ARC_CNT=%u ARC=%u\n", logHdr().c_str(), getARC_CNT(), getARC());
+    printf("%s nRF24l01+::noACKalarm ARC_CNT=%u ARC=%u\n", LOGHDR, getARC_CNT(), getARC());
     if (getARC_CNT()==getARC())
     {
         //number of max retransmits reached
@@ -398,7 +402,7 @@ void nRF24l01plus::processNoAck()
         setRX_MODE();
         //setup wait for ack...
         ARC_CNT_INC();
-        startTimer(getARD() * 10);//10ms real life 250us
+        startTimer(getARD() * ACK_TIMEOUT_FACTOR);//10ms real life 250us
     }
 }
 
@@ -409,11 +413,11 @@ void nRF24l01plus::setCollision()
 
 void nRF24l01plus::startTimer(int time)
 {
-    printf("%s nRF24l01+::startAckTimer %d\n", logHdr().c_str(), time);
+    printf("%s nRF24l01+::startAckTimer %d\n", LOGHDR, time);
     if (time>0)
     {
 
-        printf("%s nRF24l01+::creating  timer\n", logHdr().c_str());
+        printf("%s nRF24l01+::creating  timer\n", LOGHDR);
 
         theTimer = unique_ptr<Timer>(new Timer(time,0));
         theTimer->start(*noACKalarmCallback);
@@ -422,7 +426,7 @@ void nRF24l01plus::startTimer(int time)
 
 void nRF24l01plus::runRF24()
 {
-    printf("%s running\n", logHdr().c_str());
+    printf("%s running\n", LOGHDR);
     while (true)
     {
         std::unique_lock<std::mutex> lock(m);
@@ -434,7 +438,7 @@ void nRF24l01plus::runRF24()
 
 void nRF24l01plus::processCmd()
 {
-    printf("%s processing cmd=%s\n", logHdr().c_str(), cmdToString(pendingCmd));
+    printf("%s processing cmd=%s\n", LOGHDR, cmdToString(pendingCmd));
     switch (pendingCmd)
     {
         case PTX:
@@ -444,7 +448,7 @@ void nRF24l01plus::processCmd()
             }
             else
             {
-                printf("%s not in TX_MODE mode=%s\n", logHdr().c_str(), stateToString(radioState));
+                printf("%s not in TX_MODE mode=%s\n", LOGHDR, stateToString(radioState));
             }
             break;
         case PRX:
@@ -454,7 +458,7 @@ void nRF24l01plus::processCmd()
             }
             else
             {
-                printf("%s not in RX_MODE mode=%s\n", logHdr().c_str(), stateToString(radioState));
+                printf("%s not in RX_MODE mode=%s\n", LOGHDR, stateToString(radioState));
             }
             break;
         case PNOACK:
@@ -491,7 +495,7 @@ void nRF24l01plus::cmdNotify(int cmd)
     }
     else
     {
-        printf("%s cmd already pending cmd=%d", logHdr().c_str(), pendingCmd);
+        printf("%s cmd already pending cmd=%d", LOGHDR, pendingCmd);
         return;
     }
 }

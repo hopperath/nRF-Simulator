@@ -37,7 +37,7 @@ bool RF24MeshNode::begin(uint8_t channel, rf24_datarate_e data_rate, rf24_pa_dbm
     #if defined (MESH_DEBUG_SERIAL)
         Serial.println("MESH V2.0.0");
     #elif defined (MESH_DEBUG_PRINTF)
-         printf("%d: MESH V2.0.0\n",radio.rf24->id);
+         printf("%s MESH V2.0.0\n",radio.rf24->LOGHDR);
     #endif
 
     radio.begin();
@@ -408,7 +408,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
                 #if defined (MESH_DEBUG_SERIAL)
                 Serial.print( millis() ); Serial.println(F(" MSH: Poll > -64dbm "));
                 #elif defined (MESH_DEBUG_PRINTF)
-                printf( "%d: %u MSH: Poll > -64dbm\n", radio.rf24->id,millis() );
+                printf( "%s %u MSH: Poll > -64dbm\n", radio.rf24->LOGHDR,millis() );
                 #endif
             }
             else
@@ -416,7 +416,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
                 #if defined (MESH_DEBUG_SERIAL)
                 Serial.print( millis() ); Serial.println(F(" MSH: Poll < -64dbm "));
                 #elif defined (MESH_DEBUG_PRINTF)
-                printf( "%d: %u MSH: Poll < -64dbm\n", radio.rf24->id,millis() );
+                printf( "%s %u MSH: Poll < -64dbm\n", radio.rf24->LOGHDR,millis() );
                 #endif
             }
             #endif
@@ -429,7 +429,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
               #if defined (MESH_DEBUG_SERIAL)
                 Serial.print( millis() ); Serial.print(F(" MSH: No poll from level ")); Serial.println(level);
               #elif defined (MESH_DEBUG_PRINTF)
-                printf( "%d: %u MSH: No poll from level %d\n", radio.rf24->id,millis(), level);
+                printf( "%s %u MSH: No poll from level %d\n", radio.rf24->LOGHDR,millis(), level);
               #endif
                 return 0;
             }
@@ -441,7 +441,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
                 Serial.print(F(" MSH: Poll OK Level "));
                 Serial.println(level);
               #elif defined (MESH_DEBUG_PRINTF)
-                printf( "%d: %u MSH: Poll OK %u responses\n", radio.rf24->id,millis() , pollCount);
+                printf( "%s %u MSH: Poll OK %u responses\n", radio.rf24->LOGHDR,millis() , pollCount);
               #endif
                 break;
             }
@@ -456,7 +456,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
     Serial.print(F(" count "));
     Serial.println(pollCount);
     #elif defined MESH_DEBUG_PRINTF
-    printf("%d: %u MSH: Got poll from level %d count %d\n",radio.rf24->id,millis(),level,pollCount);
+    printf("%s %u MSH: Got poll from level %d count %d\n",radio.rf24->LOGHDR,millis(),level,pollCount);
     #endif
 
     uint8_t type=0;
@@ -472,7 +472,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
     #ifdef MESH_DEBUG_SERIAL
         Serial.print( millis() ); Serial.print(F(" MSH: Req addr from ")); Serial.println(contactNode[i],OCT);
     #elif defined MESH_DEBUG_PRINTF
-        printf("%d: %u MSH: Request address from: 0%o\n",radio.rf24->id,millis(),contactNode[i]);
+        printf("%s %u MSH: Request address from: 0%o\n",radio.rf24->LOGHDR,millis(),contactNode[i]);
     #endif
 
         timr = millis();
@@ -491,7 +491,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
 
     if(type != NETWORK_ADDR_RESPONSE)
     {
-        printf("%d: No network addr response\n", network.rf24id);
+        printf("%s No network addr response\n", radio.rf24->LOGHDR);
         return 0;
     }
 
@@ -518,7 +518,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
         Serial.print(fbHeader->reserved);
         Serial.print("  This NodeID: "); Serial.println(getNodeID());
         #elif defined MESH_DEBUG_PRINTF
-        printf("%d: %u Response discarded, wrong node 0%o from node 0%o sending node 0%o id %d\n",radio.rf24->id,millis(),newAddress,header.from_node,MESH_DEFAULT_ADDRESS,network.frame_buffer[7]);
+        printf("%s %u Response discarded, wrong node 0%o from node 0%o sending node 0%o id %d\n",radio.rf24->LOGHDR,millis(),newAddress,header.from_node,MESH_DEFAULT_ADDRESS,network.frame_buffer[7]);
         #endif
         return 0;
     }
@@ -533,7 +533,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
     }
     Serial.println(addrs);
     #elif defined (MESH_DEBUG_PRINTF)
-    printf("%d: Set address 0%o rcvd 0%o\n",radio.rf24->id,mesh_address,newAddress);
+    printf("%s Set address 0%o rcvd 0%o\n",radio.rf24->LOGHDR,mesh_address,newAddress);
     #endif
     mesh_address = newAddress;
 

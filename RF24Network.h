@@ -790,6 +790,7 @@ public:
 
   bool logicalToPhysicalAddress(logicalToPhysicalStruct *conversionInfo);
 
+  friend class MeshDHCP;
   RF24& radio; /**< Underlying radio driver, provides link/physical layers */
 #if defined (DUAL_HEAD_RADIO)
   RF24& radio1;

@@ -100,7 +100,7 @@ nRF24registers::~nRF24registers()
 
 void nRF24registers::setCE_HIGH()
 {
-    printf("%d: setCE_HIGH\n", id);
+    printf("%s setCE_HIGH\n", LOGHDR);
     CE = true;
     //was signal
     CEset();
@@ -108,7 +108,7 @@ void nRF24registers::setCE_HIGH()
 
 void nRF24registers::setCE_LOW()
 {
-    printf("%d: setCE_LOW\n", id);
+    printf("%s setCE_LOW\n", LOGHDR);
     CE = false;
     CEset();
 }
@@ -141,11 +141,11 @@ void nRF24registers::write_register(byte* bytes_to_write)
     bool emitPWRsig = false;
     byte addr = bytes_to_write[0]&0b00011111;
 
-    //printf("%d: reg addr=: 0x%02x\n",id,addr);
+    //printf("%s reg addr=: 0x%02x\n", LOGHDR,addr);
     //no write to these registers
     if ((addr==eOBSERVE_TX) || (addr==eRPD) || (addr==eFIFO_STATUS))
     {
-        printf("%d: Register is ObserveTX eRPF or FIFOSTATUS\n", id);
+        printf("%s Register is ObserveTX eRPF or FIFOSTATUS\n", LOGHDR);
         return;
     }
 
@@ -201,23 +201,23 @@ void nRF24registers::write_register(byte* bytes_to_write)
 
 uint64_t nRF24registers::getTXaddress()
 {
-    printf("%d: TX addr=%llx\n", id, *((uint64_t*) register_array[eTX_ADDR]));
+    printf("%s TX addr=%llx\n", LOGHDR, *((uint64_t*) register_array[eTX_ADDR]));
     return *((uint64_t*) register_array[eTX_ADDR]);
 }
 
 byte nRF24registers::addressToPipe(uint64_t address)
 {
-    //printf("%d: addr=0x%llx reg0=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
-    //printf("%d: addr=0x%llx reg1=0x%llx\n", id, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
-    //printf("%d: addr=0x%llx reg2=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P2]));
-    //printf("%d: addr=0x%llx reg3=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P3]));
-    //printf("%d: addr=0x%llx reg4=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P4]));
-    //printf("%d: addr=0x%llx reg5=0x%x\n", id, address, *((byte*) register_array[eRX_ADDR_P5]));
+    //printf("%s addr=0x%llx reg0=0x%llx\n", LOGHDR, address, *((uint64_t*) register_array[eRX_ADDR_P0]));
+    //printf("%s addr=0x%llx reg1=0x%llx\n", LOGHDR, address, *((uint64_t*) register_array[eRX_ADDR_P1]));
+    //printf("%s addr=0x%llx reg2=0x%x\n", LOGHDR, address, *((byte*) register_array[eRX_ADDR_P2]));
+    //printf("%s addr=0x%llx reg3=0x%x\n", LOGHDR, address, *((byte*) register_array[eRX_ADDR_P3]));
+    //printf("%s addr=0x%llx reg4=0x%x\n", LOGHDR, address, *((byte*) register_array[eRX_ADDR_P4]));
+    //printf("%s addr=0x%llx reg5=0x%x\n", LOGHDR, address, *((byte*) register_array[eRX_ADDR_P5]));
 
     uint64_t msb = *((uint64_t*) register_array[eRX_ADDR_P1])&0xFFFFFFFFFFFFFF00;
 
-    //printf("%d: msb=0x%llx\n", id, msb);
-    //printf("%d: addr=0x%llx msb=0x%llx\n", id, address, msb | *((byte*) register_array[eRX_ADDR_P2]));
+    //printf("%s msb=0x%llx\n", LOGHDR, msb);
+    //printf("%s addr=0x%llx msb=0x%llx\n", LOGHDR, address, msb | *((byte*) register_array[eRX_ADDR_P2]));
 
     if (REGISTERS.sEN_RXADDR.sERX_P0)
     {

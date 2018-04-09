@@ -11,10 +11,13 @@
 #include "nRF24interface.h"
 #include "MCUClock.h"
 
+
 class Ether;
 
 class nRF24l01plus : public nRF24interface
 {
+    static const int ACK_TIMEOUT_FACTOR    = 50;
+
     protected:
         //States
         static const int S_PWRDOWN    = 0;
@@ -42,7 +45,7 @@ class nRF24l01plus : public nRF24interface
         //Poco::Timer theTimer;
         std::unique_ptr<Poco::Timer> theTimer;
         std::unique_ptr<Poco::TimerCallback<nRF24l01plus>> noACKalarmCallback;
-        std::string logHdr();
+        std::string logHdr() override;
         uint32_t millis();
         MCUClock mcuClock;
 

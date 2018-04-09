@@ -16,6 +16,9 @@
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0')
 
+
+#define LOGHDR logHdr().c_str()
+
 class nRF24registers
 {
     public:
@@ -88,6 +91,7 @@ class nRF24registers
         virtual void RXTXmodeSet() = 0;
         virtual void PWRset() = 0;
         virtual void TXPacketAdded() = 0;
+        virtual std::string logHdr() = 0;
 };
 
 #endif // NRF24REGISTERS_H

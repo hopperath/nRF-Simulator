@@ -4,7 +4,7 @@
 
 #include "MCUMeshNode.h"
 #include "RF24MeshNode.h"
-
+#include "ThreadNames.h"
 
 using namespace std;
 
@@ -28,7 +28,8 @@ void MCUMeshNode::stop()
 
 void MCUMeshNode::loop()
 {
-    printf("%d: mcu started\n",nodeID);
+    ThreadNames::setName(string("mc")+to_string(nodeID));
+    printf("%s mcu started\n",radio->rf24->LOGHDR);
 
     mesh->begin();
     this_thread::yield();
@@ -41,10 +42,10 @@ void MCUMeshNode::loop()
 
         while (network->available())
         {
-            char buffer[20];
+            char buffer[32];
             RF24NetworkHeader hdr;
             network->read(hdr,buffer,sizeof(buffer));
-            printf("%d: from %o buffer2=%s\n",network->rf24id, hdr.from_node,buffer);
+            printf("%s from %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
         }
         this_thread::yield();
         this_thread::sleep_for(chrono::milliseconds(2));
@@ -60,7 +61,7 @@ void MCUMeshNode::loop()
             tx=false;
         }
     }
-    printf("%d: mcu stopped\n",nodeID);
+    printf("%s mcu stopped\n",radio->rf24->LOGHDR);
 }
 
 void MCUMeshNode::setup()

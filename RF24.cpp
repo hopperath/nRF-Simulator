@@ -74,7 +74,7 @@ uint8_t RF24::read_register(uint8_t reg)
     byte sentCMD[1] = {(byte) (R_REGISTER|(REGISTER_MASK&reg))};
     byte msgBack[1];
     rf24->Spi_Write(sentCMD, 1, msgBack);
-    //printf("%d: RF24::read_register reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",rf24->id, reg,BYTE_TO_BINARY(msgBack[0]));
+    //printf("%s RF24::read_register reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",rf24->LOGHDR, reg,BYTE_TO_BINARY(msgBack[0]));
     return msgBack[0];
 }
 
@@ -112,7 +112,7 @@ uint8_t RF24::write_register(uint8_t reg, const uint8_t* buf, uint8_t len)
 
 uint8_t RF24::write_register(uint8_t reg, uint8_t value)
 {
-    //printf("%d: RF24::write_register reg:0x%X value:0x%X\n",rf24->id,reg,value);
+    //printf("%s RF24::write_register reg:0x%X value:0x%X\n",rf24->LOGHDR,reg,value);
     byte CMDsent[3] = {(byte) (W_REGISTER|(REGISTER_MASK&reg)), value, 0};
     byte placeholder[5];
     return rf24->Spi_Write(CMDsent, 1, placeholder);
@@ -613,7 +613,7 @@ void RF24::whatHappened(bool& tx_ok, bool& tx_fail, bool& rx_ready)
     tx_fail = status&_BV(MAX_RT);
     rx_ready = status&_BV(RX_DR);
 
-    printf("%d: whatHappened txOk=%u, txFail=%u, rxReady=%u\n",rf24->id,tx_ok,tx_fail,rx_ready);
+    printf("%s whatHappened txOk=%u, txFail=%u, rxReady=%u\n",rf24->LOGHDR,tx_ok,tx_fail,rx_ready);
 }
 
 /****************************************************************************/
@@ -623,7 +623,7 @@ void RF24::openWritingPipe(uint64_t value)
     // Note that AVR 8-bit uC's store this LSB first, and the NRF24L01(+)
     // expects it LSB first too, so we're good.
 
-    printf("%d: wpipe   0x%llx\n",rf24->id,value);
+    printf("%s wpipe   0x%llx\n",rf24->LOGHDR,value);
 
 
     write_register(RX_ADDR_P0, reinterpret_cast<uint8_t*>(&value), 5);
@@ -639,7 +639,7 @@ void RF24::openWritingPipe(uint64_t value)
 
 void RF24::openReadingPipe(uint8_t child, uint64_t address)
 {
-    printf("%d: rpipe %u:0x%llx\n",rf24->id,child,address);
+    printf("%s rpipe %u:0x%llx\n",rf24->LOGHDR,child,address);
     // If this is pipe 0, cache the address.  This is needed because
     // openWritingPipe() will overwrite the pipe 0 address, so
     // startListening() will have to restore it.
@@ -736,7 +736,7 @@ void RF24::enableAckPayload()
 
 void RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
 {
-    printf("%d: writeAckPayload pipe=%u\n",rf24->id,pipe);
+    printf("%s writeAckPayload pipe=%u\n",rf24->LOGHDR,pipe);
     byte* tempBuf = (byte*) calloc(sizeof(byte), len + 2);
     byte placeholder[5];
     memcpy(tempBuf + 1, buf, len);
@@ -1071,15 +1071,13 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
     while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
     {
         YIELD();
-        /*
         if (millis() - start>=timeout)
         {
-            printf("%d: txStandby timeout=%u\n",rf24->id,timeout);
+            printf("%s txStandby timeout waited for %u\n",rf24->LOGHDR,timeout);
             ce(LOW);
             flush_tx();
             return 0;
         }
-         */
 
         if (get_status()&_BV(MAX_RT))
         {

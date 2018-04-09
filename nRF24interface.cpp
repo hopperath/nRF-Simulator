@@ -83,7 +83,7 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             }
             break;
         case eR_RX_PAYLOAD:
-            printf("%d: COMMAND SENT: R_RX_PAYLOAD\n", id);
+            printf("%s COMMAND SENT: R_RX_PAYLOAD\n",LOGHDR);
             tempMsgFrame = read_RX_payload();
             if (tempMsgFrame!=nullptr)
             {
@@ -99,27 +99,27 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             break;
 
         case eW_TX_PAYLOAD:
-            printf("%d: W_TX_PAYLOAD\n", id);
+            printf("%s W_TX_PAYLOAD\n",LOGHDR);
             write_TX_payload(msg + 1, spiMsgLen);
             break;
         case eFLUSH_TX:
-            //printf("%d: COMMAND SENT: FLUSH_TX\n", id);
+            //printf("%s COMMAND SENT: FLUSH_TX\n",LOGHDR);
             flush_tx();
             break;
         case eFLUSH_RX:
-            //printf("%d: COMMAND SENT: FLUSH_RX\n", id);
+            //printf("%s COMMAND SENT: FLUSH_RX\n",LOGHDR);
             flush_rx();
             break;
         case eR_RX_PL_WID:
-            printf("%d: COMMAND SENT: R_RX_PL_WID\n", id);
+            printf("%s COMMAND SENT: R_RX_PL_WID\n",LOGHDR);
             dataBack[0] = read_RX_payload_width();
             break;
         case eW_ACK_PAYLOAD:
-            printf("%d: COMMAND SENT: W_ACK_PAYLOAD\n", id);
+            printf("%s COMMAND SENT: W_ACK_PAYLOAD\n",LOGHDR);
             write_ack_payload(msg + 1, spiMsgLen);
             break;
         case eW_TX_PAYLOAD_NO_ACK:
-            printf("%d: COMMAND SENT: W_TX_PAYLOAD_NO_ACK\n", id);
+            printf("%s COMMAND SENT: W_TX_PAYLOAD_NO_ACK\n",LOGHDR);
             write_no_ack_payload(msg + 1, spiMsgLen);
             break;
         case eNOP:
@@ -128,7 +128,7 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
     }
 
     /*
-    printf("%d: STATUS: " BYTE_TO_BINARY_PATTERN,id,BYTE_TO_BINARY(status));
+    printf("%s STATUS: " BYTE_TO_BINARY_PATTERN,LOGHDR,BYTE_TO_BINARY(status));
     byte reg = eCONFIG;
     printf("  CONFIG: " BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(*read_register(&reg)));
     reg = eFIFO_STATUS;
@@ -223,7 +223,7 @@ void nRF24interface::removeTXPacket(shared_ptr<tMsgFrame> msgFrame)
 
 shared_ptr<tMsgFrame> nRF24interface::getTXpacket(uint64_t address)
 {
-    printf("%u: getTXPacket looking for addr=0x%llx\n", id, address);
+    printf("%s getTXPacket looking for addr=0x%llx\n",LOGHDR, address);
     lock_guard<mutex> lock(tx_mutex);
     if (TX_FIFO.empty()==true)
     {
@@ -238,7 +238,7 @@ shared_ptr<tMsgFrame> nRF24interface::getTXpacket(uint64_t address)
     {
         if (TX_FIFO.front()->Address==address)
         {
-            printf("%u: getTXPacket found addr=0x%llx\n", id, address);
+            printf("%s getTXPacket found addr=0x%llx\n",LOGHDR, address);
             return TX_FIFO.front();
         }
         temp = TX_FIFO.front();
@@ -306,7 +306,7 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, 
 
     TX_FIFO.push(theFrame);
 
-    printf("%u: newFrame push addr=0x%llx, len=%u, pid=%u, noAck=%u\n", id, Address, PayLength, pid, noAckFlag);
+    printf("%s newFrame push addr=0x%llx, len=%u, pid=%u, noAck=%u\n",LOGHDR, Address, PayLength, pid, noAckFlag);
     clearTX_EMPTY();
     if (TX_FIFO.size()==3)
     {
@@ -361,7 +361,7 @@ void nRF24interface::write_ack_payload(byte* bytes_to_write, int len)
     uint64_t ACK_address = getAddressFromPipe(pipe);
     if (ACK_address==0)
     {
-        printf("%u: No address for pipe %u", id, pipe);
+        printf("%s No address for pipe %u",LOGHDR, pipe);
         return;
     }
 
@@ -403,13 +403,13 @@ void nRF24interface::flush_tx()
 shared_ptr<tMsgFrame> nRF24interface::getAckPacketForPipe(uint8_t pipe)
 {
 
-    printf("%d: nRF24interface::getAckPacketForPipe pipe=%u DYN_PAY=%u ACK_PAY=%u\n", id, pipe,
+    printf("%s nRF24interface::getAckPacketForPipe pipe=%u DYN_PAY=%u ACK_PAY=%u\n",LOGHDR, pipe,
            isDynamicPayloadEnabled(), isACKPayloadEnabled());
     //feature not enabled
     if (isDynamicPayloadEnabled() && isACKPayloadEnabled())
     {
         uint64_t pipe_address = getAddressFromPipe_ENAA(pipe);
-        printf("%d: nRF24interface::pipe addr=0x%llx\n", id, pipe_address);
+        printf("%s nRF24interface::pipe addr=0x%llx\n",LOGHDR, pipe_address);
         if (pipe_address==0)
         {
             return nullptr;
@@ -422,7 +422,7 @@ shared_ptr<tMsgFrame> nRF24interface::getAckPacketForPipe(uint8_t pipe)
 
 bool nRF24interface::receive_frame(shared_ptr<tMsgFrame> theFrame, byte pipe)
 {
-    printf("%d: nRF24interface::receive_frame pipe=%u\n", id, pipe);
+    printf("%s nRF24interface::receive_frame pipe=%u\n",LOGHDR, pipe);
 
 
     //Check for duplicate
@@ -435,7 +435,7 @@ bool nRF24interface::receive_frame(shared_ptr<tMsgFrame> theFrame, byte pipe)
                 )
         {
             //Dupe
-            printf("%d: nRF24interface::dupe frame receive_frame pipe=%u\n", id, pipe);
+            printf("%s nRF24interface::dupe frame receive_frame pipe=%u\n",LOGHDR, pipe);
             return false;
         }
         lastReceived = theFrame;
@@ -454,7 +454,7 @@ bool nRF24interface::receive_frame(shared_ptr<tMsgFrame> theFrame, byte pipe)
     {
         setRX_P_NO(pipe);
     }
-    printf("%d: nRF24interface::push rx_frame\n", id);
+    printf("%s nRF24interface::push rx_frame\n",LOGHDR);
     lock_guard<mutex> lock(rx_mutex);
     RX_FIFO.push(theFrame);
 

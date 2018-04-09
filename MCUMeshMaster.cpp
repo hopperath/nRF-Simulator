@@ -2,6 +2,7 @@
 // Created by Hopper II, Alan T on 4/5/18.
 //
 #include "MCUMeshMaster.h"
+#include "ThreadNames.h"
 
 using namespace std;
 
@@ -25,7 +26,8 @@ void MCUMeshMaster::stop()
 
 void MCUMeshMaster::loop()
 {
-    printf("%d: mcu started\n",nodeID);
+    ThreadNames::setName(string("mc")+to_string(nodeID));
+    printf("%s mcu started\n",radio->rf24->LOGHDR);
 
     mesh->begin();
 
@@ -35,16 +37,16 @@ void MCUMeshMaster::loop()
 
         while (network->available())
         {
-            char buffer[20];
+            char buffer[32];
             RF24NetworkHeader hdr;
             network->read(hdr,buffer,sizeof(buffer));
-            printf("%d: from 0%o buffer2=%s\n",network->rf24id, hdr.from_node,buffer);
+            printf("%s from %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
         }
 
         this_thread::yield();
         this_thread::sleep_for(chrono::milliseconds(2));
     }
-    printf("%d: mcu stopped\n",nodeID);
+    printf("%s mcu stopped\n",radio->rf24->LOGHDR);
 }
 
 void MCUMeshMaster::setup()

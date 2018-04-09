@@ -12,17 +12,20 @@
 #include "RF24MeshNode.h"
 #include "MCUMeshMaster.h"
 #include "MCUMeshNode.h"
+#include "ThreadNames.h"
 
 using namespace std;
 using namespace chrono;
 
 const int startNodeID = 25;
-int totalNodes = 5;
+int totalNodes = 9;
 
 bool startMaster = true;
 
 int main(int argc, char *argv[])
 {
+    ThreadNames::setName("main");
+
     printf("Thread supported = %d\n",std::thread::hardware_concurrency());
     auto ether = shared_ptr<Ether>(new Ether());
 
