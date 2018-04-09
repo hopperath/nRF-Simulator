@@ -35,7 +35,8 @@ void Ether::enterEther(const void* pSender, tMsgFrame& msg)
     }
     else
     {
-        collisionSig();
+        //TODO: revisit this, currently blocks the next RX by this caller, does that model reality?
+        //collisionSig();
     }
 }
 

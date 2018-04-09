@@ -6,7 +6,7 @@ using namespace std;
 using namespace Poco;
 
 //constructor
-nRF24l01plus::nRF24l01plus(int id, Ether* someEther) : theEther(someEther), chip(&nRF24l01plus::runRF24, this)
+nRF24l01plus::nRF24l01plus(int id, Ether* someEther, MCUClock clock) : theEther(someEther), chip(&nRF24l01plus::runRF24, this), mcuClock(clock)
 {
     //ctor
     this->id = id;
@@ -21,6 +21,19 @@ nRF24l01plus::nRF24l01plus(int id, Ether* someEther) : theEther(someEther), chip
 
     noACKalarmCallback = unique_ptr<TimerCallback<nRF24l01plus>>(new TimerCallback<nRF24l01plus>(*this, &nRF24l01plus::noACKalarm));
 }
+
+string nRF24l01plus::logHdr()
+{
+    ostringstream hdr;
+    hdr << id << ": " << millis() << ": t" << this_thread::get_id() <<": ";
+    return hdr.str();
+}
+
+uint32_t nRF24l01plus::millis()
+{
+    return mcuClock.millis();
+}
+
 
 void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 {
@@ -57,7 +70,7 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 //This only gets called in S_RX_MODE
 void nRF24l01plus::startPRX()
 {
-    printf("%d: pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d\n", id, isPWRUP(), getCE(), radioState==S_RX_MODE, waitingForAck);
+    printf("%s pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d ackAddr=0x%llx\n", logHdr().c_str(), isPWRUP(), getCE(), radioState==S_RX_MODE, waitingForAck, ACK_address);
     if (waitingForAck)
     {
         //waiting for ack

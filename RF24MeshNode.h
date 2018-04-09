@@ -42,6 +42,7 @@
  * @file RF24Mesh.h
  *
  * Class declaration for RF24Mesh
+ *
  */
 
 #include "RF24MeshNode_config.h"

@@ -30,9 +30,7 @@ void MCUMeshNode::loop()
 {
     printf("%d: mcu started\n",nodeID);
 
-    printf("%d: before begin\n",nodeID);
     mesh->begin();
-    printf("%d: after begin\n",nodeID);
     this_thread::yield();
 
     bool tx = true;
@@ -68,7 +66,7 @@ void MCUMeshNode::loop()
 void MCUMeshNode::setup()
 {
     radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get()),clock));
-    network = unique_ptr<RF24Network>(new RF24Network(*radio,50,clock));
+    network = unique_ptr<RF24Network>(new RF24Network(*radio,150,clock));
     mesh = unique_ptr<RF24MeshNode>(new RF24MeshNode(*radio,*network,clock));
     mesh->setNodeID(nodeID);
 }

@@ -242,6 +242,7 @@ int16_t RF24MeshNode::getAddress(uint8_t nodeID)
         uint32_t timeout = MESH_GET_ADDR_TIMEOUT;
         while(network.update() != MESH_ADDR_LOOKUP)
         {
+            YIELD();
             if(millis()-timer > timeout)
             {
                 return -1;
@@ -478,6 +479,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
 
         while(millis()-timr < NETWORK_ADDR_RESPONSE_TIMEOUT)
         {
+            YIELD();
             if( (type = network.update()) == NETWORK_ADDR_RESPONSE)
             {
                 i=pollCount;
@@ -489,6 +491,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
 
     if(type != NETWORK_ADDR_RESPONSE)
     {
+        printf("%d: No network addr response\n");
         return 0;
     }
 

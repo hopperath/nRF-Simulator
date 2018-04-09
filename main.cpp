@@ -17,7 +17,7 @@ using namespace std;
 using namespace chrono;
 
 const int startNodeID = 25;
-const int totalNodes = 1;
+int totalNodes = 5;
 
 bool startMaster = true;
 
@@ -49,6 +49,12 @@ int main(int argc, char *argv[])
         this_thread::yield();
         this_thread::sleep_for(chrono::seconds(1));
     }
+
+    this_thread::sleep_for(chrono::seconds(2));
+    auto sixth = shared_ptr<MCUMeshNode>(new MCUMeshNode(55,ether));
+    nodes.push_back(sixth);
+
+    sixth->start();
 
     while(true)
     {

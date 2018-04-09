@@ -38,7 +38,7 @@ void MCUMeshMaster::loop()
             char buffer[20];
             RF24NetworkHeader hdr;
             network->read(hdr,buffer,sizeof(buffer));
-            printf("%d: from %o buffer2=%s\n",network->rf24id, hdr.from_node,buffer);
+            printf("%d: from 0%o buffer2=%s\n",network->rf24id, hdr.from_node,buffer);
         }
 
         this_thread::yield();
@@ -50,7 +50,7 @@ void MCUMeshMaster::loop()
 void MCUMeshMaster::setup()
 {
     radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get()),clock));
-    network = unique_ptr<RF24Network>(new RF24Network(*radio,50,clock));
+    network = unique_ptr<RF24Network>(new RF24Network(*radio,150,clock));
     mesh = unique_ptr<RF24MeshMaster>(new RF24MeshMaster(*radio,*network,clock));
 }
 

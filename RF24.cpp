@@ -1064,17 +1064,22 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
     }
 
     YIELD();
+    std::this_thread::sleep_for(chrono::milliseconds(10));
 
     uint32_t start = millis();
 
     while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
     {
+        YIELD();
+        /*
         if (millis() - start>=timeout)
         {
+            printf("%d: txStandby timeout=%u\n",rf24->id,timeout);
             ce(LOW);
             flush_tx();
             return 0;
         }
+         */
 
         if (get_status()&_BV(MAX_RT))
         {

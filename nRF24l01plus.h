@@ -1,15 +1,17 @@
 #ifndef NRF24L01PLUS_H
 #define NRF24L01PLUS_H
 
-#include <cstdint>
-#include "nRF24interface.h"
 
-class Ether;
 
 #include <Poco/BasicEvent.h>
 #include <Poco/Timer.h>
 #include <queue>
 #include <memory>
+#include <cstdint>
+#include "nRF24interface.h"
+#include "MCUClock.h"
+
+class Ether;
 
 class nRF24l01plus : public nRF24interface
 {
@@ -40,10 +42,12 @@ class nRF24l01plus : public nRF24interface
         Poco::Timer theTimer;
         //Poco::TimerCallback<nRF24l01plus>* noACKalarmCallback;
         std::unique_ptr<Poco::TimerCallback<nRF24l01plus>> noACKalarmCallback;
+        std::string logHdr();
+        uint32_t millis();
+        MCUClock mcuClock;
 
         //Thread for RF24 processor
         void runRF24();
-        //std::thread chip(nRF24interface::run);
         std::thread chip;
         std::condition_variable cmdAvailable;
         std::mutex m;
@@ -60,7 +64,7 @@ class nRF24l01plus : public nRF24interface
         const char* cmdToString(int cmd);
 
     public:
-        explicit nRF24l01plus(int id, Ether* someEther = nullptr);
+        explicit nRF24l01plus(int id, Ether* someEther = nullptr, MCUClock clock);
 
     protected:
         std::shared_ptr<tMsgFrame> rxMsg;

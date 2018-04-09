@@ -49,6 +49,7 @@
 // MESH
 #define MESH_DEFAULT_ADDRESS 04444
 #define MULTICAST_ADDRESS_NODE 0100
+#define MULTICAST_PIPE 0
 
 #define PSTR(x) (x)
 #define delayMicroseconds(x) usleep(x)
