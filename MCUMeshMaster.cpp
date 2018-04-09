@@ -49,7 +49,7 @@ void MCUMeshMaster::loop()
 
 void MCUMeshMaster::setup()
 {
-    radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get()),clock));
+    radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get(),clock),clock));
     network = unique_ptr<RF24Network>(new RF24Network(*radio,150,clock));
     mesh = unique_ptr<RF24MeshMaster>(new RF24MeshMaster(*radio,*network,clock));
 }

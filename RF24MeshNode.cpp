@@ -491,7 +491,7 @@ bool RF24MeshNode::requestAddress(uint8_t level)
 
     if(type != NETWORK_ADDR_RESPONSE)
     {
-        printf("%d: No network addr response\n");
+        printf("%d: No network addr response\n", network.rf24id);
         return 0;
     }
 

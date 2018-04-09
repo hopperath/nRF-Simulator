@@ -39,8 +39,8 @@ class nRF24l01plus : public nRF24interface
         std::shared_ptr<Ether> theEther;
         std::shared_ptr<tMsgFrame> TXpacket;
         uint64_t ACK_address;
-        Poco::Timer theTimer;
-        //Poco::TimerCallback<nRF24l01plus>* noACKalarmCallback;
+        //Poco::Timer theTimer;
+        std::unique_ptr<Poco::Timer> theTimer;
         std::unique_ptr<Poco::TimerCallback<nRF24l01plus>> noACKalarmCallback;
         std::string logHdr();
         uint32_t millis();
@@ -53,18 +53,20 @@ class nRF24l01plus : public nRF24interface
         std::mutex m;
 
     protected:
-        static const int IDLE = 0;
-        static const int PTX = 1;
-        static const int PRX = 2;
+        static const int IDLE   = 0;
+        static const int PTX    = 1;
+        static const int PRX    = 2;
+        static const int PNOACK = 3;
 
         int pendingCmd = IDLE;
 
         void cmdNotify(int cmd);
         void processCmd();
         const char* cmdToString(int cmd);
+        void processNoAck();
 
     public:
-        explicit nRF24l01plus(int id, Ether* someEther = nullptr, MCUClock clock);
+        explicit nRF24l01plus(int id, Ether* someEther, MCUClock& clock);
 
     protected:
         std::shared_ptr<tMsgFrame> rxMsg;
