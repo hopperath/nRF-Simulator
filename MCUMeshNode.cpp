@@ -34,7 +34,7 @@ void MCUMeshNode::loop()
     mesh->begin();
     this_thread::yield();
 
-    bool tx = true;
+    bool tx = false;
 
     while (running)
     {

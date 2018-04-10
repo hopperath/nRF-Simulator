@@ -11,6 +11,8 @@
 #include <condition_variable>
 #include "nRF24interface.h"
 #include "MCUClock.h"
+#include <condition_variable>
+#include <mutex>
 
 
 class Ether;
@@ -34,6 +36,12 @@ class nRF24l01plus : public nRF24interface
         void setRX_MODE();
         void setTX_MODE();
 
+        std::mutex txMutex;
+        std::condition_variable txdone;
+    public:
+        void waitForTX(int timeout);
+        void notifyTX();
+
     public:
         Poco::BasicEvent<tMsgFrame> sendMsgEvent;
 
@@ -50,6 +58,7 @@ class nRF24l01plus : public nRF24interface
         uint32_t millis();
         MCUClock mcuClock;
 
+    protected:
         //Thread for RF24 processor
         void runRF24();
         std::thread chip;
@@ -68,6 +77,7 @@ class nRF24l01plus : public nRF24interface
         void processCmd();
         const char* cmdToString(int cmd);
         void processNoAck();
+
 
     public:
         explicit nRF24l01plus(int id, Ether* someEther, MCUClock& clock);
@@ -92,7 +102,7 @@ class nRF24l01plus : public nRF24interface
         void sendAutoAck(std::shared_ptr<tMsgFrame> theFrame, byte pipe);
 
         //Ether interface placeholders
-        void sendMsgToEther(std::shared_ptr<tMsgFrame> theMSG);
+        void sendMsgToEther(std::shared_ptr<tMsgFrame> theMSG, bool isAck);
         void receiveMsgFromEther(const void* pSender, tMsgFrame& theMSG);
 };
 

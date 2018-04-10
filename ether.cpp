@@ -21,20 +21,28 @@ void Ether::collisionSig()
     collisionEvent.notifyAsync(this);
 }
 
-void Ether::enterEther(const void* pSender, tMsgFrame& msg)
+void Ether::enterEther(const void* pSender, tMsgFrame& msg, bool isAck)
 {
     printf("Ether::enterEther msg.addr=%llx\n",msg.Address);
 
-    if (locked == false && mutex.tryLock())
+    if (locked == false && mutex.try_lock())
     {
         locked = true;
         mutex.unlock();
 
         mMsg = msg;
-        startTimer(5);
+        if (isAck)
+        {
+            startTimer(1);
+        }
+        else
+        {
+            startTimer(2);
+        }
     }
     else
     {
+        printf("Ether::collision\n");
         //TODO: revisit this, currently blocks the next RX by this caller, does that model reality?
         //collisionSig();
     }

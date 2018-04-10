@@ -2,95 +2,44 @@
 #include <string>
 #include <chrono>
 #include <iostream>
-#include <vector>
 
 #include "nRF24l01plus.h"
 #include "RF24.h"
 #include "ether.h"
 #include "RF24Network.h"
-#include "RF24MeshMaster.h"
-#include "RF24MeshNode.h"
-#include "MCUMeshMaster.h"
-#include "MCUMeshNode.h"
-#include "ThreadNames.h"
 
 using namespace std;
 using namespace chrono;
 
-const int startNodeID = 25;
-int totalNodes = 1;
-
-bool startMaster = true;
 
 int main(int argc, char *argv[])
 {
-    ThreadNames::setName("main");
+    MCUClock clock;
+    Ether* ether = new Ether();
 
-    printf("Thread supported = %d\n",std::thread::hardware_concurrency());
-    auto ether = shared_ptr<Ether>(new Ether());
+    RF24 radio(9,10,new nRF24l01plus(91,ether,clock),clock);
+    RF24 radio2(9,10,new nRF24l01plus(92,ether,clock),clock);
+    RF24 radio3(9,10,new nRF24l01plus(93,ether,clock),clock);
 
+    RF24Network network(radio,200,clock);
+    radio.begin();
+    network.begin(00,300);
 
-    vector<shared_ptr<MCUMeshNode>> nodes;
-    MCUMeshMaster master(ether);
+    RF24Network network2(radio2,200,clock);
+    radio2.begin();
+    network2.begin(01,300);
 
-    if (startMaster)
-    {
-        master.start();
-        this_thread::yield();
-    }
+    RF24Network network3(radio3,200,clock);
+    network3.begin(011,300);
 
-    for (int i=0; i<totalNodes; i++)
-    {
-        nodes.push_back(shared_ptr<MCUMeshNode>(new MCUMeshNode(startNodeID+i,ether)));
-    }
+    RF24NetworkHeader header;
+    header.from_node = 011;
+    header.to_node = 01;
+    header.type = 90;
 
+    char msg[]="netpayload";
+    network3.write(header,msg,sizeof(msg));
 
-
-    for (shared_ptr<MCUMeshNode> node: nodes)
-    {
-        node->start();
-        this_thread::yield();
-        this_thread::sleep_for(chrono::seconds(1));
-    }
-
-    this_thread::sleep_for(chrono::seconds(2));
-    auto sixth = shared_ptr<MCUMeshNode>(new MCUMeshNode(55,ether));
-    nodes.push_back(sixth);
-
-    sixth->start();
-
-    while(true)
-    {
-        fflush(stdout);
-        this_thread::sleep_for(chrono::seconds(1));
-    };
-
-
-
-    printf("Sleeping");
-    this_thread::yield();
-    this_thread::sleep_for(chrono::seconds(15));
-
-
-
-
-    /*
-    //while(true);
-    printf("\nExiting\n");
-    master.stop();
-    for (shared_ptr<MCUMeshNode> node: nodes)
-    {
-        node->stop();
-    }
-    this_thread::sleep_for(chrono::seconds(2));
-     */
-
-
-
-
-
-
-    /*
     auto start = steady_clock::now();
 
     auto started_waiting_at = steady_clock::now();
@@ -119,10 +68,12 @@ int main(int argc, char *argv[])
     }
     else
     {
-
+        char buffer[20];
+        RF24NetworkHeader hdr;
+        network2.read(hdr,buffer,sizeof(buffer));
+        printf("from %o buffer2=%s\n",hdr.from_node,buffer);
     }
 
-     */
     return 0;
 }
 

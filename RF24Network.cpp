@@ -248,7 +248,7 @@ uint8_t RF24Network::update(void)
         }
         else
         {
-            //Don't foward addressed multicast packets
+            //Don't forward addressed multicast packets
             if (pipe_num==MULTICAST_PIPE)
             {
                 if (header->to_node==MULTICAST_ADDRESS_NODE)
@@ -554,6 +554,7 @@ bool RF24Network::_write(RF24NetworkHeader& header, const void* message, uint16_
 bool RF24Network::write(uint16_t to_node,
                         uint8_t directTo)  // Direct To: 0 = First Payload, standard routing, 1=routed payload, 2=directRoute to host, 3=directRoute to Route
 {
+    IF_RF24_SERIAL_DEBUG(printf_P(PSTR("%s RF24Network::write to_node=0%o directTo=%d\n"),radio.rf24->LOGHDR,to_node,directTo));
     bool ok = false;
     bool isAckType = false;
     if (frame_buffer[6]>64 && frame_buffer[6]<192)
@@ -572,9 +573,7 @@ bool RF24Network::write(uint16_t to_node,
     logicalToPhysicalAddress(&conversion);
 
 #if defined (RF24_LINUX)
-    IF_RF24_SERIAL_DEBUG(
-            printf_P(PSTR("%s %u: MAC Sending to 0%o via 0%o on pipe %x\n"), radio.rf24->LOGHDR, millis(), to_node, conversion.send_node,
-                     conversion.send_pipe));
+    IF_RF24_SERIAL_DEBUG( printf_P(PSTR("%s %u: MAC Sending to 0%o via 0%o on pipe %x type=%d\n"), radio.rf24->LOGHDR, millis(), to_node, conversion.send_node,conversion.send_pipe,frame_buffer[6]));
 #else
     IF_RF24_SERIAL_DEBUG(
             printf_P(PSTR("%lu: MAC Sending to 0%o via 0%o on pipe %x\n"), millis(), to_node, conversion.send_node, conversion.send_pipe));
@@ -587,7 +586,7 @@ bool RF24Network::write(uint16_t to_node,
 #if defined (RF24_LINUX)
         IF_RF24_SERIAL_DEBUG_ROUTING(
                 printf_P(PSTR("%s %u: MAC Send fail to 0%o via 0%o on pipe %x\n"), radio.rf24->LOGHDR, millis(), to_node, conversion.send_node,
-                         conversion.send_pipe););
+                         conversion.send_pipe));
     }
 #else
     IF_RF24_SERIAL_DEBUG_ROUTING(
@@ -621,7 +620,8 @@ bool RF24Network::write(uint16_t to_node,
 #endif
     }
 
-    if (ok && conversion.send_node!=to_node && (directTo==0 || directTo==3) && isAckType)
+    if (ok && conversion.send_node!=to_node &&
+        (directTo==TX_NORMAL || directTo==USER_TX_TO_LOGICAL_ADDRESS) && isAckType)
     {
         // Now, continue listening
         if (networkFlags&FLAG_FAST_FRAG)
@@ -634,6 +634,8 @@ bool RF24Network::write(uint16_t to_node,
 
         uint32_t reply_time = millis();
 
+        //TODO: SIM ONLY
+        int yield = 0;
         while (update()!=NETWORK_ACK)
         {
 #if defined (RF24_LINUX)
@@ -653,11 +655,17 @@ bool RF24Network::write(uint16_t to_node,
                 ok = false;
                 break;
             }
+            YIELDAT(5);
         }
     }
+
+    printf("%s networkFlags: " BYTE_TO_BINARY_PATTERN "\n",radio.rf24->LOGHDR,BYTE_TO_BINARY(networkFlags));
+
     if (!(networkFlags&FLAG_FAST_FRAG))
     {
         // Now, continue listening
+        printf("%s write:startListening\n",radio.rf24->LOGHDR);
+
         radio.startListening();
     }
 
@@ -755,6 +763,11 @@ bool RF24Network::write_to_pipe(uint16_t node, uint8_t pipe, bool multicast)
     {
         ok = radio.txStandBy(txTimeout);
         radio.setAutoAck(0, 0);
+    }
+    else
+    {
+        printf("%s write_to_pipe before waitForTX timeout=%u\n",radio.rf24->LOGHDR,100);
+        radio.rf24->waitForTX(100);
     }
 
 #if defined (__arm__) || defined (RF24_LINUX)

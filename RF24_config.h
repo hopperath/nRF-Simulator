@@ -21,6 +21,7 @@
 #define rf24_min(a,b) (a<b?a:b)
 #define pgm_read_byte(p) (*(p))
 #define YIELD() (std::this_thread::yield())
+#define YIELDAT(x) if (yield++==(x)) { YIELD(); yield=0; }
 
 #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BINARY(byte)  \

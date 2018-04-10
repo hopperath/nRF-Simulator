@@ -1056,21 +1056,23 @@ void RF24::setRetries(uint8_t delay, uint8_t count)
 
 bool RF24::txStandBy(uint32_t timeout, bool startTx)
 {
-
+    printf("%s txStandby timeout=%u\n",rf24->LOGHDR,timeout);
     if (startTx)
     {
         stopListening();
         ce(HIGH);
     }
 
-    YIELD();
-    std::this_thread::sleep_for(chrono::milliseconds(10));
+    int yield = 0;
 
     uint32_t start = millis();
 
+    //TODO: SIM ONLY
+    //This exits when the ack is received
+    rf24->waitForTX(timeout);
+
     while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
     {
-        YIELD();
         if (millis() - start>=timeout)
         {
             printf("%s txStandby timeout waited for %u\n",rf24->LOGHDR,timeout);
@@ -1086,6 +1088,8 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
             ce(LOW);
             ce(HIGH);
         }
+
+        YIELDAT(200);
     }
 
     ce(LOW);                   //Set STANDBY-I mode

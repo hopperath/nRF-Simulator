@@ -5,6 +5,7 @@
 #include "ThreadNames.h"
 
 using namespace std;
+using namespace chrono;
 using namespace Poco;
 
 //constructor
@@ -21,7 +22,7 @@ nRF24l01plus::nRF24l01plus(int id, Ether* someEther, MCUClock& clock) : theEther
     theEther->collisionEvent += Poco::delegate(this, &nRF24l01plus::setCollision);
 
     //outbound events
-    sendMsgEvent += Poco::delegate(someEther, &Ether::enterEther);
+    //sendMsgEvent += Poco::delegate(someEther, &Ether::enterEther);
 
     noACKalarmCallback = unique_ptr<TimerCallback<nRF24l01plus>>(new TimerCallback<nRF24l01plus>(*this, &nRF24l01plus::noACKalarm));
 }
@@ -59,9 +60,17 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
         return;
     }
 
-    printf("%s nRF24l01plus::receiveMsgFromEther msg=%s collision=%d mode=%s %s\n", LOGHDR, rxMsg->toString().c_str(), collision,stateToString(radioState),(radioState==S_RX_MODE)?"":"ignored");
+    //Doing this here to reduce thread context switches
+    bool toMe = (addressToPipe(rxMsg->Address) != 0xFF);
+
+    printf("%s nRF24l01plus::receiveMsgFromEther msg=%s collision=%d mode=%s %s\n", LOGHDR, rxMsg->toString().c_str(), collision,stateToString(radioState),(radioState==S_RX_MODE&&toMe)?"":"ignored");
 
     if (radioState!=S_RX_MODE)
+    {
+        return;
+    }
+
+    if (!toMe)
     {
         return;
     }
@@ -78,10 +87,10 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 void nRF24l01plus::startPRX()
 {
     printf("%s pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d ackAddr=0x%llx\n", LOGHDR, isPWRUP(), getCE(), radioState==S_RX_MODE, waitingForAck, ACK_address);
+    byte pipe = addressToPipe(rxMsg->Address);
     if (waitingForAck)
     {
         //waiting for ack
-        byte pipe = addressToPipe(rxMsg->Address);
         printf("%s addr=0x%llx  ack_addr=0x%llx\n", LOGHDR, rxMsg->Address, ACK_address);
         if (rxMsg->Address==ACK_address)
         {
@@ -91,7 +100,6 @@ void nRF24l01plus::startPRX()
     }
     else
     {
-        byte pipe = addressToPipe(rxMsg->Address);
         printf("%s addr=0x%llx pipe=%d %s\n", LOGHDR, rxMsg->Address, pipe, (pipe==0xFF)?"ignoring":"");
         //check if address is one off the pipe addresses
         if (pipe!=0xFF)
@@ -129,7 +137,7 @@ void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
         ackPktFrame = msg;
         ackPktFrame->Packet_Control_Field.NO_ACK = 0;
         setTX_MODE();
-        sendMsgToEther(ackPktFrame);
+        sendMsgToEther(ackPktFrame,true);
         setRX_MODE();
     }
     else //Simple Ack
@@ -143,7 +151,7 @@ void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
         ackFrame->Address = theFrame->Address;
 
         setTX_MODE();
-        sendMsgToEther(ackFrame);
+        sendMsgToEther(ackFrame,true);
         setRX_MODE();
     }
 }
@@ -162,10 +170,12 @@ void nRF24l01plus::setTX_MODE()
     setRadioState(S_TX_MODE);
 }
 
-void nRF24l01plus::sendMsgToEther(shared_ptr<tMsgFrame> theMSG)
+void nRF24l01plus::sendMsgToEther(shared_ptr<tMsgFrame> theMSG, bool isAck)
 {
     printf("%s sendMsgToEther:msg.addr=%llx\n", LOGHDR, theMSG->Address);
-    sendMsgEvent.notifyAsync(this, *theMSG);
+
+    theEther->enterEther(this,*theMSG, isAck);
+    //sendMsgEvent.notifyAsync(this, *theMSG);
 }
 
 /*
@@ -185,7 +195,6 @@ void nRF24l01plus::startPTX()
     //packet found in TX that is not ACK packet
     //load with TX address
     packetToSend->Address = getTXaddress();
-    sendMsgToEther(packetToSend);
     //check if ack expected
     if ((packetToSend->Packet_Control_Field.NO_ACK==0) && (getARC()!=0) && getENAA(0))
     {
@@ -204,8 +213,13 @@ void nRF24l01plus::startPTX()
         removeTXPacket(packetToSend);
         standbyTransition();
         setTX_DS_IRQ();
+        notifyTX();
     }
+
+    sendMsgToEther(packetToSend, false);
 }
+
+
 
 /*
  * in PTX if CE is set HIGH and there is a packet waiting transmit packet
@@ -339,6 +353,7 @@ void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
     standbyTransition();
     theTimer->stop();
     setTX_DS_IRQ();
+    notifyTX();
 }
 
 void nRF24l01plus::removeTXPacket(shared_ptr<tMsgFrame> frame)
@@ -401,12 +416,13 @@ void nRF24l01plus::processNoAck()
         //Will be sent on next TX unless TX_FLUSH is called
         clearAck();
         standbyTransition();
+        notifyTX();
     }
-    else
+    else        
     {
         //retransmit message and increase reTransCounter and start timer again
         setTX_MODE();
-        sendMsgToEther(TXpacket);
+        sendMsgToEther(TXpacket, false);
         setRX_MODE();
         //setup wait for ack...
         ARC_CNT_INC();
@@ -438,10 +454,32 @@ void nRF24l01plus::runRF24()
     while (true)
     {
         std::unique_lock<std::mutex> lock(m);
+        fflush(stdout);
         cmdAvailable.wait(lock);
         processCmd();
         lock.unlock();
     }
+}
+
+//These are to help threads emulate real world.
+//There was an issue of not returning to RX mode quick enough
+//due to thread swapping. This seems to give priority to the waiting
+//thread for the next cycle.
+void nRF24l01plus::waitForTX(int timeout)
+{
+    printf("%s waitForTX timeout=%d mode=%s\n", LOGHDR, timeout, stateToString(radioState));
+    if (S_TX_MODE)
+    {
+        std::unique_lock<std::mutex> lock(txMutex);
+        txdone.wait_for(lock, milliseconds(timeout));
+        lock.unlock();
+    }
+}
+
+void nRF24l01plus::notifyTX()
+{
+    printf("%s notifyTX\n", LOGHDR);
+    txdone.notify_one();
 }
 
 void nRF24l01plus::processCmd()

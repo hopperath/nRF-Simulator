@@ -346,7 +346,7 @@ uint16_t RF24MeshNode::renewAddress(uint32_t timeout)
     uint8_t totalReqs = 0;
     radio.stopListening();
 
-    network.networkFlags |= 2;
+    network.networkFlags |= FLAG_BYPASS_HOLDS;
     delay(10);
 
     network.begin(MESH_DEFAULT_ADDRESS);
@@ -363,7 +363,7 @@ uint16_t RF24MeshNode::renewAddress(uint32_t timeout)
         reqCounter = ++reqCounter%4;
         totalReqs = ++totalReqs%10;
     }
-    network.networkFlags &= ~2;
+    network.networkFlags &= ~FLAG_BYPASS_HOLDS;
     return mesh_address;
 }
 
@@ -389,6 +389,8 @@ bool RF24MeshNode::requestAddress(uint8_t level)
     uint16_t contactNode[MESH_MAXPOLLS];
     uint8_t pollCount=0;
 
+    //TODO: SIM ONLY
+    int yield = 0;
 
     while(true)
     {
@@ -446,6 +448,9 @@ bool RF24MeshNode::requestAddress(uint8_t level)
                 break;
             }
         }
+
+        YIELDAT(yield);
+
     }
 
 

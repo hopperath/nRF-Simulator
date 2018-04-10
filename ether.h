@@ -5,6 +5,7 @@
 #include <Poco/Mutex.h>
 #include <Poco/BasicEvent.h>
 #include <memory>
+#include <mutex>
 
 #include "msgframe.h"
 
@@ -15,7 +16,7 @@ class Ether
         //int packetLossPercent;
 
         //This is thread based
-        Poco::Mutex mutex;
+        std::mutex mutex;
         bool locked = false;
         std::unique_ptr<Poco::TimerCallback<Ether>> alarmCallback;
         std::unique_ptr<Poco::Timer> myTimer;
@@ -30,7 +31,7 @@ class Ether
         //Event methods
         void leaveEther();
         void collisionSig();
-        void enterEther(const void* pSender, tMsgFrame& theMSG);
+        void enterEther(const void* pSender, tMsgFrame& theMSG, bool isAck=false);
 
     private:
         void propogate(Poco::Timer& timer);
