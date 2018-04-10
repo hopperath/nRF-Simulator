@@ -8,6 +8,7 @@
 #include <queue>
 #include <memory>
 #include <cstdint>
+#include <condition_variable>
 #include "nRF24interface.h"
 #include "MCUClock.h"
 

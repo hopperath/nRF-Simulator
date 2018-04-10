@@ -4,6 +4,8 @@
 #include "nRF24registers.h"
 #include <queue>
 #include <thread>
+#include <mutex>
+#include <cstring>
 #include "msgframe.h"
 
 class nRF24interface : public nRF24registers

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <sstream>
 #include <string>
+#include <bitset>
 
 typedef struct sPACKET_CONTROL_FIELD
 {

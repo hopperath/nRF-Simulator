@@ -4,6 +4,7 @@
 #include <Poco/Timer.h>
 #include <Poco/Mutex.h>
 #include <Poco/BasicEvent.h>
+#include <memory>
 
 #include "msgframe.h"
 
