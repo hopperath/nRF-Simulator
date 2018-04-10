@@ -63,7 +63,7 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
     //Doing this here to reduce thread context switches
     bool toMe = (addressToPipe(rxMsg->Address) != 0xFF);
 
-    printf("%s nRF24l01plus::receiveMsgFromEther msg=%s collision=%d mode=%s %s\n", LOGHDR, rxMsg->toString().c_str(), collision,stateToString(radioState),(radioState==S_RX_MODE&&toMe)?"":"ignored");
+    printf("%s nRF24l01plus::receiveMsgFromEther msg=%s mode=%s %s\n", LOGHDR, rxMsg->toString().c_str(), stateToString(radioState),(radioState==S_RX_MODE&&toMe)?"":"ignored");
 
     if (radioState!=S_RX_MODE)
     {
@@ -198,8 +198,8 @@ void nRF24l01plus::startPTX()
     //check if ack expected
     if ((packetToSend->Packet_Control_Field.NO_ACK==0) && (getARC()!=0) && getENAA(0))
     {
-        //set for ACK recipt..
-        ACK_address = getTXaddress();
+        //set for ACK receipt..
+        ACK_address = packetToSend->Address;
         waitingForAck = true;
         clearARC_CNT();
         printf("%s Autoretry delay ARD=%u\n", LOGHDR, getARD());

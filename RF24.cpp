@@ -639,7 +639,7 @@ void RF24::openWritingPipe(uint64_t value)
 
 void RF24::openReadingPipe(uint8_t child, uint64_t address)
 {
-    printf("%s rpipe %u:0x%llx\n",rf24->LOGHDR,child,address);
+    //printf("%s rpipe %u:0x%llx\n",rf24->LOGHDR,child,address);
     // If this is pipe 0, cache the address.  This is needed because
     // openWritingPipe() will overwrite the pipe 0 address, so
     // startListening() will have to restore it.

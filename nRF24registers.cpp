@@ -100,17 +100,24 @@ nRF24registers::~nRF24registers()
 
 void nRF24registers::setCE_HIGH()
 {
-    printf("%s setCE_HIGH\n", LOGHDR);
-    CE = true;
-    //was signal
-    CEset();
+    printf("%s setCE_HIGH CE=%d\n", LOGHDR, CE);
+
+    if (!CE)
+    {
+        CE = true;
+        //was signal
+        CEset();
+    }
 }
 
 void nRF24registers::setCE_LOW()
 {
-    printf("%s setCE_LOW\n", LOGHDR);
-    CE = false;
-    CEset();
+    printf("%s setCE_LOW CE=%d\n", LOGHDR,CE);
+    if (CE)
+    {
+        CE = false;
+        CEset();
+    }
 }
 
 /*
@@ -141,8 +148,9 @@ void nRF24registers::write_register(byte* bytes_to_write)
     bool emitPWRsig = false;
     byte addr = bytes_to_write[0]&0b00011111;
 
-    //printf("%s reg addr=: 0x%02x\n", LOGHDR,addr);
-    //no write to these registers
+
+    //printf("%s reg addr= 0x%02x\n", LOGHDR,addr);
+    //don't write to these registers
     if ((addr==eOBSERVE_TX) || (addr==eRPD) || (addr==eFIFO_STATUS))
     {
         printf("%s Register is ObserveTX eRPF or FIFOSTATUS\n", LOGHDR);
@@ -157,12 +165,14 @@ void nRF24registers::write_register(byte* bytes_to_write)
 
     if (addr==eCONFIG)
     {
-        if ((*where_to_write&0b1)!=(*bytes_to_write&0b1))
+        printf("%s old reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",LOGHDR, addr,BYTE_TO_BINARY(where_to_write[0]));
+        printf("%s new reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",LOGHDR, addr,BYTE_TO_BINARY(bytes_to_write[1]));
+        if ((where_to_write[0]&0b1)!=(bytes_to_write[1]&0b1))
         {
             // RX/TX mode change
             emitRXTXmodeSignal = true;
         }
-        if ((*where_to_write&0b10)!=(*bytes_to_write&0b10))
+        if ((where_to_write[0]&0b10)!=(bytes_to_write[1]&0b10))
         {
             emitPWRsig = true;
         }
