@@ -9,6 +9,11 @@
 #include <map>
 #include <thread>
 
+
+#include <cpuid.h>
+
+#define CPUID(INFO, LEAF, SUBLEAF) __cpuid_count(LEAF, SUBLEAF, INFO[0], INFO[1], INFO[2], INFO[3])
+
 class ThreadNames
 {
     protected:
@@ -22,6 +27,8 @@ class ThreadNames
         static void setName(const std::string& name);
         static void setName(const char* name);
         static const std::string& getName();
+        static int getCPU();
+
 };
 
 #endif //NRF_SIMULATOR_THREADNAME_H

@@ -18,7 +18,7 @@ using namespace std;
 using namespace chrono;
 
 const int startNodeID = 25;
-int totalNodes = 9;
+int totalNodes = 1;
 
 bool startMaster = true;
 

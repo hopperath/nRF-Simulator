@@ -78,6 +78,7 @@ class nRF24l01plus : public nRF24interface
         void startPTX();
         void startPRX();
         void ackReceived(std::shared_ptr<tMsgFrame> theMSG, byte pipe);
+        void clearAck();
 
         void CEset() override ;
         void RXTXmodeSet() override ;

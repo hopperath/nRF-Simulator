@@ -115,6 +115,8 @@ void MeshDHCP::printAddressList()
 
 void MeshDHCP::saveDHCP()
 {
+    //TODO: uncomment, in sim this take a long time.
+    /*
     ofstream outfile (DHCPFILE,ofstream::binary | ofstream::trunc);
 
     printf("saveDHCP\n");
@@ -123,8 +125,9 @@ void MeshDHCP::saveDHCP()
         outfile.write( (char*)item.get(),sizeof(MeshNode));
         //printf("writingToFile %d  0%o size %d\n",addrList[0].nodeID,addrList[0].address,sizeof(addrListStruct));
     }
-    printAddressList();
     outfile.close();
+     */
+    printAddressList();
 }
 
 void MeshDHCP::releaseAddress(uint16_t netAddress)

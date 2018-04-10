@@ -27,7 +27,21 @@
 
 // Max polls
 #define MESH_MAXPOLLS 4
+
+
+
+//TODO: used for sim
 // Time to wait for poll response
+#define MESH_POLL_TIMEOUT 255
+
+// Time to wait for address request
+#define NETWORK_ADDR_RESPONSE_TIMEOUT  225
+
+#define MESH_PING_DELAY 203
+
+#define MESH_GET_ADDR_TIMEOUT 250
+
+/*
 #define MESH_POLL_TIMEOUT 55
 
 // Time to wait for address request
@@ -36,6 +50,7 @@
 #define MESH_PING_DELAY 103
 
 #define MESH_GET_ADDR_TIMEOUT 150
+ */
 
 /**
  * @file RF24Mesh.h
