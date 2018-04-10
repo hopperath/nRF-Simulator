@@ -67,7 +67,7 @@ void MCUMeshNode::loop()
 void MCUMeshNode::setup()
 {
     radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get(),clock),clock));
-    network = unique_ptr<RF24Network>(new RF24Network(*radio,150,clock));
+    network = unique_ptr<RF24Network>(new RF24Network(*radio,300,clock));
     mesh = unique_ptr<RF24MeshNode>(new RF24MeshNode(*radio,*network,clock));
     mesh->setNodeID(nodeID);
 }

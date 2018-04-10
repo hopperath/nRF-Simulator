@@ -31,7 +31,7 @@ bool RF24MeshMaster::begin(uint8_t channel, rf24_datarate_e data_rate, rf24_pa_d
     #if defined (MESH_DEBUG_SERIAL)
         Serial.println("MESH V2.0.0");
     #elif defined (MESH_DEBUG_PRINTF)
-         printf( "MESH V2.0.0\n");
+         printf( "%s MESH V2.0.0\n",radio.rf24->LOGHDR);
     #endif
 
     radio.begin();

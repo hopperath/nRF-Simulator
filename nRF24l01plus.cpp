@@ -30,7 +30,9 @@ string nRF24l01plus::logHdr()
 {
     ostringstream hdr;
     //hdr << id << ": " << millis() << ": t" << this_thread::get_id() <<": ";
-    hdr << setw(2) << id << ": " << setw(5) << millis() << ":" <<setw(5)<< ThreadNames::getName() << ":";
+    //hdr << setw(2) << id << ": " << setw(5) << millis() << ":" <<setw(5)<< ThreadNames::getName() << ":";
+    hdr << setw(2) << id << ": " << setw(5) << millis() << ":" <<setw(5)<< ThreadNames::getName() << ":" << ThreadNames::getCPU() << ":";
+
     return hdr.str();
 }
 
@@ -333,8 +335,8 @@ void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
     }
     removeTXPacket(TXpacket);
     setTX_MODE();
+    clearAck();
     standbyTransition();
-    waitingForAck = false;
     theTimer->stop();
     setTX_DS_IRQ();
 }
@@ -379,6 +381,13 @@ void nRF24l01plus::noACKalarm(Poco::Timer& timer)
     cmdNotify(PNOACK) ;
 }
 
+void nRF24l01plus::clearAck()
+{
+    TXpacket = nullptr;
+    waitingForAck = false;
+    ACK_address = 0;
+}
+
 void nRF24l01plus::processNoAck()
 {
     printf("%s nRF24l01+::noACKalarm ARC_CNT=%u ARC=%u\n", LOGHDR, getARC_CNT(), getARC());
@@ -390,8 +399,7 @@ void nRF24l01plus::processNoAck()
         setMAX_RT_IRQ();
         //Still in TX_FIFO
         //Will be sent on next TX unless TX_FLUSH is called
-        TXpacket = nullptr;
-        waitingForAck = false;
+        clearAck();
         standbyTransition();
     }
     else

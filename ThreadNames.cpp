@@ -54,3 +54,22 @@ void ThreadNames::setName(thread::id tid, const std::string& name)
     lock_guard<mutex> lock(m);
     tnames.insert(pair<thread::id, string>(tid,name));
 }
+
+int ThreadNames::getCPU()
+{
+        int CPU;
+        uint32_t CPUInfo[4];
+        CPUID(CPUInfo, 1, 0);
+        /* CPUInfo[1] is EBX, bits 24-31 are APIC ID */
+        if ( (CPUInfo[3] & (1 << 9)) == 0)
+        {
+          CPU = -1;  /* no APIC on chip */
+        }
+        else
+        {
+          CPU = (unsigned)CPUInfo[1] >> 24;
+        }
+        if (CPU < 0) CPU = 0;
+
+    return CPU;
+}
