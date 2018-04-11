@@ -71,6 +71,8 @@ class RF24
        MCUClock mcuClock;
        uint32_t millis();
 
+       int write_fast_timeout = 95;
+
     private:
     uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
     uint8_t csn_pin; /**< SPI Chip select */

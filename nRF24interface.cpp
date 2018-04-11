@@ -127,12 +127,12 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             break;
     }
 
+    //printf("%s STATUS: " BYTE_TO_BINARY_PATTERN "\n",LOGHDR,BYTE_TO_BINARY(status));
     /*
-    printf("%s STATUS: " BYTE_TO_BINARY_PATTERN,LOGHDR,BYTE_TO_BINARY(status));
     byte reg = eCONFIG;
     printf("  CONFIG: " BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(*read_register(&reg)));
     reg = eFIFO_STATUS;
-    printf("  FIFO: " BYTE_TO_BINARY_PATTERN "\n", BYTE_TO_BINARY(*read_register(&reg)));
+    printf("  FIFO: " BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(*read_register(&reg)));
      */
 
     return status;

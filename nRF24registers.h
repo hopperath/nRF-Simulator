@@ -62,8 +62,8 @@ class nRF24registers
         void setRX_FULL(){REGISTERS.sFIFO_STATUS.sRX_FULL = 1;}
         void clearRX_EMPTY(){REGISTERS.sFIFO_STATUS.sRX_EMPTY = 0;}
         void setRX_EMPTY(){REGISTERS.sFIFO_STATUS.sRX_EMPTY = 1;}
-        void setTX_FULL(){REGISTERS.sFIFO_STATUS.sTX_FULL = 1;}
-        void clearTX_FULL(){REGISTERS.sFIFO_STATUS.sTX_FULL = 0;}
+        void setTX_FULL();
+        void clearTX_FULL();
         void setTX_FULL_IRQ(){REGISTERS.sSTATUS.sTX_FULL = 1;}
         void clearTX_FULL_IRQ(){REGISTERS.sSTATUS.sTX_FULL = 0;}
         void setTX_EMPTY(){REGISTERS.sFIFO_STATUS.sTX_EMPTY = 1;}

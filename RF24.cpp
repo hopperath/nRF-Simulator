@@ -175,7 +175,7 @@ void RF24::print_status(uint8_t status)
            (status&_BV(TX_DS)) ? 1 : 0,
            (status&_BV(MAX_RT)) ? 1 : 0,
            ((status >> RX_P_NO)&0b111),
-           (status&_BV(TX_FULL)) ? 1 : 0
+           (status&_BV(TX_FULL_STATUS)) ? 1 : 0
     );
 }
 
@@ -889,7 +889,7 @@ bool RF24::writeBlocking(const void* buf, uint8_t len, uint32_t timeout)
 
     uint32_t timer = millis();                              //Get the time that the payload transmission started
 
-    while ((get_status()&(_BV(TX_FULL))))
+    while ((get_status()&(_BV(TX_FULL_STATUS))))
     {
         //Blocking only if FIFO is full. This will loop and block until TX is successful or timeout
         if (get_status()&_BV(MAX_RT))
@@ -1099,39 +1099,34 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
 
 bool RF24::writeFast(const void* buf, uint8_t len, const bool multicast)
 {
+    printf("%s writeFast\n",rf24->LOGHDR);
     //Block until the FIFO is NOT full.
     //Keep track of the MAX retries and set auto-retry if seeing failures
     //Return 0 so the user can control the retrys and set a timer or failure counter if required
     //The radio will auto-clear everything in the FIFO as long as CE remains high
 
-#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
     uint32_t timer = millis();
-#endif
 
     //Blocking only if FIFO is full. This will loop and block until TX is successful or fail
-    while ((get_status()&(_BV(TX_FULL))))
+    while ((get_status()&(_BV(TX_FULL_STATUS))))
     {
         if (get_status()&_BV(MAX_RT))
         {
             //reUseTX();							//Set re-transmit
             write_register(STATUS, _BV(MAX_RT));    //Clear max retry flag
-            return 0;                               //Return 0. The previous payload has been retransmitted
+            return false;                               //Return 0. The previous payload has been retransmitted
             //From the user perspective, if you get a 0, just keep trying to send the same payload
         }
-#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
-        if (millis() - timer > 95 )
+        if (millis() - timer > write_fast_timeout )
         {
-            errNotify();
-   #if defined (FAILURE_HANDLING)
-            return 0;
-   #endif
+            printf("%s fastWrite txfifo full for timeout=%u\n",rf24->LOGHDR,write_fast_timeout);
+            return false;
         }
-#endif
     }
     //Start Writing
     startFastWrite(buf, len, multicast);
 
-    return 1;
+    return true;
 }
 
 bool RF24::writeFast(const void* buf, uint8_t len)
@@ -1149,6 +1144,7 @@ bool RF24::writeFast(const void* buf, uint8_t len)
 void RF24::startFastWrite(const void* buf, uint8_t len, const bool multicast, bool startTx)
 { //TMRh20
 
+    printf("%s startFastWrite\n",rf24->LOGHDR);
     //write_payload( buf,len);
     write_payload(buf, len, multicast ? W_TX_PAYLOAD_NO_ACK : W_TX_PAYLOAD);
     if (startTx)
@@ -1159,6 +1155,7 @@ void RF24::startFastWrite(const void* buf, uint8_t len, const bool multicast, bo
 
 uint8_t RF24::write_payload(const void* buf, uint8_t data_len, const uint8_t writeType)
 {
+    printf("%s write_payload\n",rf24->LOGHDR);
     uint8_t status;
     const uint8_t* current = reinterpret_cast<const uint8_t*>(buf);
 

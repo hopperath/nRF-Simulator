@@ -29,7 +29,7 @@
 #define MESH_MAXPOLLS 4
 
 
-
+/*
 //TODO: used for sim
 // Time to wait for poll response
 #define MESH_POLL_TIMEOUT 255
@@ -40,6 +40,7 @@
 #define MESH_PING_DELAY 203
 
 #define MESH_GET_ADDR_TIMEOUT 250
+ */
 
 /*
 #define MESH_POLL_TIMEOUT 55
@@ -100,6 +101,10 @@ class RF24MeshMaster
     MCUClock mcuClock;
     uint32_t millis();
 
+    uint32_t mesh_ping_delay = 103;
+    uint32_t mesh_get_addr_timeout = 150;
+    uint32_t mesh_poll_timeout = 55;
+    uint32_t network_addr_response_timeout = 225;
     /**
      * Construct the mesh:
      *

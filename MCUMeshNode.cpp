@@ -51,10 +51,6 @@ void MCUMeshNode::loop()
 
         while (network->available())
         {
-            char buffer[32];
-            RF24NetworkHeader hdr;
-            network->read(hdr,buffer,sizeof(buffer));
-            printf("%s from %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
         }
         if (tx)
         {
@@ -79,4 +75,8 @@ void MCUMeshNode::setup()
     network = unique_ptr<RF24Network>(new RF24Network(*radio,300,clock));
     mesh = unique_ptr<RF24MeshNode>(new RF24MeshNode(*radio,*network,clock));
     mesh->setNodeID(nodeID);
+    mesh->mesh_ping_delay = 150;
+    mesh->mesh_get_addr_timeout = 200;
+    mesh->mesh_poll_timeout = 100;
+    mesh->network_addr_response_timeout = 250;
 }

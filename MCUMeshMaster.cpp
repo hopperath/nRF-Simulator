@@ -49,7 +49,7 @@ void MCUMeshMaster::loop()
             char buffer[32];
             RF24NetworkHeader hdr;
             network->read(hdr,buffer,sizeof(buffer));
-            printf("%s from %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
+            printf("%s RCV FROM %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
         }
 
         if (tx)
@@ -74,5 +74,9 @@ void MCUMeshMaster::setup()
     radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get(),clock),clock));
     network = unique_ptr<RF24Network>(new RF24Network(*radio,300,clock));
     mesh = unique_ptr<RF24MeshMaster>(new RF24MeshMaster(*radio,*network,clock));
+    mesh->mesh_ping_delay = 150;
+    mesh->mesh_get_addr_timeout = 200;
+    mesh->mesh_poll_timeout = 100;
+    mesh->network_addr_response_timeout = 250;
 }
 

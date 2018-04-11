@@ -19,7 +19,6 @@ nRF24l01plus::nRF24l01plus(int id, Ether* someEther, MCUClock& clock) : theEther
     printf("%s %s\n", LOGHDR, stateToString(radioState));
     //inbound events
     theEther->dispatchMsgEvent += Poco::delegate(this, &nRF24l01plus::receiveMsgFromEther);
-    theEther->collisionEvent += Poco::delegate(this, &nRF24l01plus::setCollision);
 
     //outbound events
     //sendMsgEvent += Poco::delegate(someEther, &Ether::enterEther);
@@ -75,12 +74,7 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
         return;
     }
 
-    if (!collision)
-    {
-        //collision did not happen
-        cmdNotify(PRX);
-    }
-    collision = false;
+    cmdNotify(PRX);
 }
 
 //This only gets called in S_RX_MODE
@@ -420,6 +414,7 @@ void nRF24l01plus::clearAck()
 void nRF24l01plus::processNoAck()
 {
     printf("%s nRF24l01+::noACKalarm ARC_CNT=%u ARC=%u\n", LOGHDR, getARC_CNT(), getARC());
+    lock_guard<mutex> lock(shockburst);
     if (getARC_CNT()==getARC())
     {
         //number of max retransmits reached
@@ -442,11 +437,6 @@ void nRF24l01plus::processNoAck()
         ARC_CNT_INC();
         startTimer(getARD() * ACK_TIMEOUT_FACTOR);//10ms real life 250us
     }
-}
-
-void nRF24l01plus::setCollision()
-{
-    collision = true;
 }
 
 void nRF24l01plus::startTimer(int time)

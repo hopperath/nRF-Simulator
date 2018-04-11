@@ -81,11 +81,11 @@
 #define TX_DS       5
 #define MAX_RT      4
 #define RX_P_NO     1
-#define TX_FULL     0
+#define TX_FULL_STATUS 0
 #define PLOS_CNT    4
 #define ARC_CNT     0
 #define TX_REUSE    6
-#define FIFO_FULL   5
+#define TX_FULL_FIFO 5
 #define TX_EMPTY    4
 #define RX_FULL     1
 #define RX_EMPTY    0

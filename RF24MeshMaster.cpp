@@ -189,7 +189,7 @@ bool RF24MeshMaster::checkConnection()
         {
             break;
         }
-        delay(MESH_PING_DELAY);
+        delay(mesh_ping_delay);
     }
     if(!ok)
     {
@@ -233,7 +233,7 @@ int16_t RF24MeshMaster::getAddress(uint8_t nodeID)
     if(network.write(header,&nodeID,sizeof(nodeID)+1) )
     {
         uint32_t timer=millis();
-        uint32_t timeout = MESH_GET_ADDR_TIMEOUT;
+        uint32_t timeout = mesh_get_addr_timeout;
         while(network.update() != MESH_ADDR_LOOKUP)
         {
             if(millis()-timer > timeout)
@@ -413,7 +413,7 @@ bool RF24MeshMaster::requestAddress(uint8_t level)
             #endif
         }
 
-        if(millis() - timr > MESH_POLL_TIMEOUT  || pollCount >=  MESH_MAXPOLLS )
+        if(millis() - timr > mesh_poll_timeout || pollCount >=  MESH_MAXPOLLS )
         {
             if(!pollCount)
             {
@@ -468,7 +468,7 @@ bool RF24MeshMaster::requestAddress(uint8_t level)
 
         timr = millis();
 
-        while(millis()-timr < NETWORK_ADDR_RESPONSE_TIMEOUT)
+        while(millis()-timr < network_addr_response_timeout)
         {
             if( (type = network.update()) == NETWORK_ADDR_RESPONSE)
             {

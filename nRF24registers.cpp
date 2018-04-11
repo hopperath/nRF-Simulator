@@ -88,6 +88,17 @@ nRF24registers::nRF24registers() : CE(false)
     register_array[eFEATURE] = &REGISTERS.sFEATURE;
     *((byte*) register_array[eFEATURE]) = 0b00000000;
 }
+void nRF24registers::setTX_FULL()
+{
+    REGISTERS.sFIFO_STATUS.sTX_FULL = 1;
+    REGISTERS.sSTATUS.sTX_FULL = 1;
+}
+
+void nRF24registers::clearTX_FULL()
+{
+    REGISTERS.sFIFO_STATUS.sTX_FULL = 0;
+    REGISTERS.sSTATUS.sTX_FULL = 0;
+}
 
 nRF24registers::~nRF24registers()
 {

@@ -47,7 +47,6 @@ class nRF24l01plus : public nRF24interface
 
         bool waitingForAck = false;
         std::shared_ptr<tMsgFrame> ackPktFrame;
-        bool collision = false;
         std::shared_ptr<Ether> theEther;
         std::shared_ptr<tMsgFrame> TXpacket;
         uint64_t ACK_address;
@@ -98,7 +97,6 @@ class nRF24l01plus : public nRF24interface
         void TXPacketAdded() override;
         void removeTXPacket(std::shared_ptr<tMsgFrame> frame) override;
         void noACKalarm(Poco::Timer& timer);
-        void setCollision();
         void startTimer(int time);
         void sendAutoAck(std::shared_ptr<tMsgFrame> theFrame, byte pipe);
 
