@@ -13,6 +13,7 @@ void Ether::leaveEther()
 {
     printf("Ether::leaveEther msg.addr=%llx\n",mMsg.Address);
     //No need for async, in timer thread
+    //dispatchMsgEvent.notify(this, mMsg);
     dispatchMsgEvent.notify(this, mMsg);
 }
 
@@ -37,14 +38,12 @@ void Ether::enterEther(const void* pSender, tMsgFrame& msg, bool isAck)
         }
         else
         {
-            startTimer(2);
+            startTimer(1);
         }
     }
     else
     {
-        printf("Ether::collision\n");
-        //TODO: revisit this, currently blocks the next RX by this caller, does that model reality?
-        //collisionSig();
+        printf("Ether::collision msg dropped\n");
     }
 }
 
@@ -57,6 +56,7 @@ void Ether::propogate(Timer& timer)
 
     //Ether free
     locked = false;
+    printf("Ether::propogate complete\n");
 }
 
 void Ether::startTimer(int time)
@@ -64,5 +64,5 @@ void Ether::startTimer(int time)
 
     printf("Ether::startTimer %d\n",time);
     myTimer = std::unique_ptr<Timer>(new Timer(time, 0));
-    myTimer->start(TimerCallback<Ether>(*this, &Ether::propogate));
+    myTimer->start(TimerCallback<Ether>(*this, &Ether::propogate),Thread::PRIO_HIGHEST);
 }

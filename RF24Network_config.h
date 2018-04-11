@@ -63,7 +63,7 @@
 /** Debug Options */
 #define RF24_SERIAL_DEBUG
 #define RF24_SERIAL_DEBUG_MINIMAL
-//#define RF24_SERIAL_DEBUG_ROUTING
+#define RF24_SERIAL_DEBUG_ROUTING
 //#define RF24_SERIAL_DEBUG_FRAGMENTATION
 //#define RF24_SERIAL_DEBUG_FRAGMENTATION_L2
 /*************************************/

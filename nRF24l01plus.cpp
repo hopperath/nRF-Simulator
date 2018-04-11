@@ -86,6 +86,8 @@ void nRF24l01plus::receiveMsgFromEther(const void* pSender, tMsgFrame& msg)
 //This only gets called in S_RX_MODE
 void nRF24l01plus::startPRX()
 {
+    lock_guard<mutex> lock(shockburst);
+
     printf("%s pwrup=%d  ce=%d rx_mode=%d waitingForAck=%d ackAddr=0x%llx\n", LOGHDR, isPWRUP(), getCE(), radioState==S_RX_MODE, waitingForAck, ACK_address);
     byte pipe = addressToPipe(rxMsg->Address);
     if (waitingForAck)
@@ -127,6 +129,10 @@ void nRF24l01plus::sendAutoAck(shared_ptr<tMsgFrame> theFrame, byte pipe)
     }
 
     printf("%s nRF24l01plus::sendAutoAck\n", LOGHDR);
+
+    //Allow ether to finish propogating
+    this_thread::yield();
+    //this_thread::sleep_for(microseconds(500));
 
     auto msg = getAckPacketForPipe(pipe);
 
@@ -186,6 +192,8 @@ void nRF24l01plus::startPTX()
 {
     printf("%s nRF24l01plus::startPTX\n", LOGHDR);
 
+    lock_guard<mutex> lock(shockburst);
+
     //Does not remove from TX_FIFO, per datasheet
     auto packetToSend = getTXpacket();
     if (packetToSend==nullptr)
@@ -214,6 +222,7 @@ void nRF24l01plus::startPTX()
         standbyTransition();
         setTX_DS_IRQ();
         notifyTX();
+
     }
 
     sendMsgToEther(packetToSend, false);
@@ -228,6 +237,7 @@ void nRF24l01plus::startPTX()
 void nRF24l01plus::CEset()
 {
     printf("%s CEset CE=%d state=%s\n", LOGHDR, getCE(),stateToString());
+    lock_guard<mutex> lock(shockburst);
 
     //TODO: this should be a "shockburst mode" flag.
     //Ignore CE if processing
@@ -251,6 +261,8 @@ void nRF24l01plus::CEset()
 void nRF24l01plus::RXTXmodeSet()
 {
     printf("%s RXTXmodeSet PRIM_RX=%d state=%s\n", LOGHDR, isPRIM_RX(), stateToString());
+    lock_guard<mutex> lock(shockburst);
+
     //Only changes if in standby_1 i think...
     if (radioState==S_STANDBY_I)
     {
@@ -261,6 +273,7 @@ void nRF24l01plus::RXTXmodeSet()
 void nRF24l01plus::TXPacketAdded()
 {
     printf("%s TXPacketAdded state=%s\n", LOGHDR, stateToString());
+    lock_guard<mutex> lock(shockburst);
     if (radioState==S_STANDBY_II)
     {
         setRadioState(S_TX_MODE);
@@ -271,6 +284,7 @@ void nRF24l01plus::TXPacketAdded()
 void nRF24l01plus::PWRset()
 {
     printf("%s PWRset PWR=%d state=%s\n", LOGHDR, isPWRUP(), stateToString());
+    lock_guard<mutex> lock(shockburst);
     if (isPWRUP())
     {
         setRadioState(S_STANDBY_I);
@@ -453,7 +467,7 @@ void nRF24l01plus::runRF24()
     printf("%s running\n", LOGHDR);
     while (true)
     {
-        std::unique_lock<std::mutex> lock(m);
+        std::unique_lock<std::mutex> lock(cmdPickup);
         fflush(stdout);
         cmdAvailable.wait(lock);
         processCmd();

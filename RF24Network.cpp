@@ -229,7 +229,7 @@ uint8_t RF24Network::update(void)
 
             if ((returnSysMsgs && header->type>127) || header->type==NETWORK_ACK)
             {
-                IF_RF24_SERIAL_DEBUG_ROUTING(printf_P(PSTR("%s %lu MAC: System payload rcvd %d\n"), radio.rf24->LOGHDR, millis(), returnVal););
+                IF_RF24_SERIAL_DEBUG_ROUTING(printf_P(PSTR("%s MAC: System payload rcvd %d\n"), radio.rf24->LOGHDR, returnVal));
                 //if( (header->type < 148 || header->type > 150) && header->type != NETWORK_MORE_FRAGMENTS_NACK && header->type != EXTERNAL_DATA_TYPE && header->type!= NETWORK_LAST_FRAGMENT){
                 if (header->type!=NETWORK_FIRST_FRAGMENT && header->type!=NETWORK_MORE_FRAGMENTS &&
                     header->type!=NETWORK_MORE_FRAGMENTS_NACK && header->type!=EXTERNAL_DATA_TYPE && header->type!=NETWORK_LAST_FRAGMENT)
@@ -275,7 +275,7 @@ uint8_t RF24Network::update(void)
                         IF_RF24_SERIAL_DEBUG_ROUTING(
                                 printf_P(PSTR("%s %u MAC: FWD multicast frame from 0%o to level %u\n"), radio.rf24->LOGHDR, millis(),
                                          header->from_node, multicast_level + 1););
-                        write(levelToAddress(multicast_level) << 3, 4);
+                        write(levelToAddress(multicast_level) << 3, USER_TX_MULTICAST);
                     }
                 }
                 else
@@ -286,7 +286,7 @@ uint8_t RF24Network::update(void)
             }
             else
             {
-                write(header->to_node, 1);    //Send it on, indicate it is a routed payload
+                write(header->to_node, TX_ROUTED);    //Send it on, indicate it is a routed payload
             }
         }
 
@@ -512,8 +512,8 @@ bool RF24Network::_write(RF24NetworkHeader& header, const void* message, uint16_
     {
 #if defined (RF24_LINUX)
         memcpy(frame_buffer + sizeof(RF24NetworkHeader), message, rf24_min(frame_size - sizeof(RF24NetworkHeader), len));
-        IF_RF24_SERIAL_DEBUG(printf("%s %u: FRG frame size %i\n", radio.rf24->LOGHDR, millis(), frame_size););
-        IF_RF24_SERIAL_DEBUG(printf("%s %u: FRG frame ", radio.rf24->LOGHDR, millis());
+        //IF_RF24_SERIAL_DEBUG(printf("%s %u: FRG frame size %i\n", radio.rf24->LOGHDR, millis(), frame_size););
+        IF_RF24_SERIAL_DEBUG(printf("%s %u: FRG frame size=%i | ", radio.rf24->LOGHDR, millis(),frame_size);
                                      const char* charPtr = reinterpret_cast<const char*>(frame_buffer);
                                      for (uint16_t i = 0; i<frame_size; i++)
                                      { printf("%02X ", charPtr[i]); };
@@ -569,7 +569,7 @@ bool RF24Network::write(uint16_t to_node,
     }
 
     //Load info into our conversion structure, and get the converted address info
-    logicalToPhysicalStruct conversion = {to_node, directTo, 0};
+    logicalToPhysicalStruct conversion = {to_node, directTo, false};
     logicalToPhysicalAddress(&conversion);
 
 #if defined (RF24_LINUX)
@@ -607,6 +607,7 @@ bool RF24Network::write(uint16_t to_node,
         conversion.multicast = false;
         logicalToPhysicalAddress(&conversion);
 
+        printf("%s sending NETWORK_ACK to_node=0%o\n",radio.rf24->LOGHDR,header->to_node);
         //Write the data using the resulting physical address
         frame_size = sizeof(RF24NetworkHeader);
         write_to_pipe(conversion.send_node, conversion.send_pipe, conversion.multicast);
@@ -636,30 +637,42 @@ bool RF24Network::write(uint16_t to_node,
 
         //TODO: SIM ONLY
         int yield = 0;
-        while (update()!=NETWORK_ACK)
+
+        printf("%s waiting for NETWORK_ACK routeTimeout=%d\n",radio.rf24->LOGHDR,routeTimeout);
+
+        while (true)
         {
-#if defined (RF24_LINUX)
-            delayMicroseconds(900);
-#endif
-            if (millis() - reply_time>routeTimeout)
+            if (update()!=NETWORK_ACK)
             {
 #if defined (RF24_LINUX)
-                IF_RF24_SERIAL_DEBUG_ROUTING(
-                        printf_P(PSTR("%s %u: MAC Network ACK fail from 0%o via 0%o on pipe %x\n"), radio.rf24->LOGHDR, millis(), to_node,
-                                 conversion.send_node, conversion.send_pipe););
-#else
-                IF_RF24_SERIAL_DEBUG_ROUTING(
-                        printf_P(PSTR("%lu: MAC Network ACK fail from 0%o via 0%o on pipe %x\n"), millis(), to_node, conversion.send_node,
-                                 conversion.send_pipe););
+                delayMicroseconds(900);
 #endif
-                ok = false;
+                if (millis() - reply_time>routeTimeout)
+                {
+#if defined (RF24_LINUX)
+                    IF_RF24_SERIAL_DEBUG_ROUTING(
+                            printf_P(PSTR("%s %u: MAC Network ACK fail from 0%o via 0%o on pipe %x\n"), radio.rf24->LOGHDR, millis(),
+                                     to_node,
+                                     conversion.send_node, conversion.send_pipe););
+#else
+                    IF_RF24_SERIAL_DEBUG_ROUTING(
+                            printf_P(PSTR("%lu: MAC Network ACK fail from 0%o via 0%o on pipe %x\n"), millis(), to_node, conversion.send_node,
+                                     conversion.send_pipe););
+#endif
+                    ok = false;
+                    break;
+                }
+                YIELDAT(5);
+            }
+            else
+            {
+                printf("%s received NETWORK_ACK\n",radio.rf24->LOGHDR);
                 break;
             }
-            YIELDAT(5);
         }
     }
 
-    printf("%s networkFlags: " BYTE_TO_BINARY_PATTERN "\n",radio.rf24->LOGHDR,BYTE_TO_BINARY(networkFlags));
+    //printf("%s networkFlags: " BYTE_TO_BINARY_PATTERN "\n",radio.rf24->LOGHDR,BYTE_TO_BINARY(networkFlags));
 
     if (!(networkFlags&FLAG_FAST_FRAG))
     {
@@ -675,7 +688,7 @@ bool RF24Network::write(uint16_t to_node,
         }else{	++nFails;
         }
 #endif
-    IF_RF24_SERIAL_DEBUG_ROUTING(printf_P(PSTR("%s %u: MAC Send ok=%x\n"), radio.rf24->LOGHDR, ok););
+    IF_RF24_SERIAL_DEBUG_ROUTING(printf_P(PSTR("%s MAC Send ok=%x\n"), radio.rf24->LOGHDR, ok));
     return ok;
 }
 

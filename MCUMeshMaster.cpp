@@ -10,7 +10,16 @@ MCUMeshMaster::MCUMeshMaster(shared_ptr<Ether> someEther) : ether(someEther)
 {
     setup();
 }
+MCUMeshMaster::~MCUMeshMaster()
+{
+    stop();
+}
 
+void MCUMeshMaster::triggerTX(uint16_t to_node)
+{
+    tx = true;
+    this->to_node = to_node;
+}
 
 void MCUMeshMaster::start()
 {
@@ -41,6 +50,17 @@ void MCUMeshMaster::loop()
             RF24NetworkHeader hdr;
             network->read(hdr,buffer,sizeof(buffer));
             printf("%s from %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
+        }
+
+        if (tx)
+        {
+            RF24NetworkHeader header;
+            header.to_node = to_node;
+            header.type = 90;
+
+            string msg = string("netpayload") + to_string(nodeID);
+            network->write(header,msg.c_str(), msg.size()+1);
+            tx=false;
         }
 
         this_thread::yield();

@@ -13,6 +13,17 @@ MCUMeshNode::MCUMeshNode(int id, shared_ptr<Ether> someEther) : ether(someEther)
     setup();
 }
 
+MCUMeshNode::~MCUMeshNode()
+{
+    stop();
+}
+
+void MCUMeshNode::triggerTX(uint16_t to_node)
+{
+    tx = true;
+    this->to_node = to_node;
+}
+
 void MCUMeshNode::start()
 {
     running = true;
@@ -34,8 +45,6 @@ void MCUMeshNode::loop()
     mesh->begin();
     this_thread::yield();
 
-    bool tx = false;
-
     while (running)
     {
         mesh->update();
@@ -47,19 +56,19 @@ void MCUMeshNode::loop()
             network->read(hdr,buffer,sizeof(buffer));
             printf("%s from %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
         }
-        this_thread::yield();
-        this_thread::sleep_for(chrono::milliseconds(2));
-
-        //if (tx && mesh->mesh_address!=MESH_DEFAULT_ADDRESS)
         if (tx)
         {
             RF24NetworkHeader header;
-            header.to_node = 00;
-            header.type = 75;
-            char msg[15] = "sendTo00";
-            network->write(header,msg,sizeof(msg));
+            header.to_node = to_node;
+            header.type = 90;
+
+            string msg = string("netpayload") + to_string(nodeID);
+            network->write(header,msg.c_str(), msg.size()+1);
             tx=false;
         }
+
+        this_thread::yield();
+        this_thread::sleep_for(chrono::milliseconds(2));
     }
     printf("%s mcu stopped\n",radio->rf24->LOGHDR);
 }

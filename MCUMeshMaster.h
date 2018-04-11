@@ -21,12 +21,16 @@ class MCUMeshMaster
         std::shared_ptr<Ether> ether;
 
         int nodeID = 0;
+        uint16_t to_node;
+        bool tx = false;
         bool running = false;
 
         std::thread mcu;
 
      public:
         MCUMeshMaster(std::shared_ptr<Ether> someEther);
+        ~MCUMeshMaster();
+        void triggerTX(uint16_t to_node);
         void start();
         void stop();
      protected:

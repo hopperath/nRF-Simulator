@@ -7,6 +7,8 @@
 #include "RF24.h"
 #include "ether.h"
 #include "RF24Network.h"
+#include "ThreadNames.h"
+#include "MCUNetworkNode.h"
 
 using namespace std;
 using namespace chrono;
@@ -14,65 +16,103 @@ using namespace chrono;
 
 int main(int argc, char *argv[])
 {
-    Ether* ether = new Ether();
+    MCUClock clock;
+    auto ether = shared_ptr<Ether>(new Ether());
+    ThreadNames::setName("main");
 
-    RF24 radio(9,10,new nRF24l01plus(91,ether));
-    RF24 radio2(9,10,new nRF24l01plus(92,ether));
-    //RF24 radio3(9,10,new nRF24l01plus(93,ether));
+    MCUNetworkNode node00(0,00,ether);
+    MCUNetworkNode node01(1,01,ether);
+    MCUNetworkNode node011(2,011,ether);
+    MCUNetworkNode node0111(3,0111,ether);
+    MCUNetworkNode node01111(4,01111,ether);
 
-    RF24Network network(radio);
-    radio.begin();
-    network.begin(76,00);
 
-    RF24Network network2(radio2);
-    radio2.begin();
-    network2.begin(76,01);
+    node00.start();
+    node01.start();
+    node011.start();
+    node0111.start();
+    node01111.start();
 
-    //RF24Network network3(radio3);
-    //network3.begin(76,011);
+    node01111.triggerTX(00);
 
-    RF24NetworkHeader header;
-    header.from_node = 00;
-    header.to_node = 01;
-    header.type = 90;
 
-    char msg[]="netpayload01";
-    network.write(header,msg,sizeof(msg));
-
-    auto start = steady_clock::now();
-
-    auto started_waiting_at = steady_clock::now();
-    milliseconds RxTimeout(200);
-    bool timeout = false;
-
-    network2.update();
-
-    while ( !network2.available() )
+    int cnt = 0;
+    while (true)
     {
-        // If waited longer than 200ms, indicate timeout and exit while loop
-        // While nothing is received
-        if (steady_clock::now() - started_waiting_at > RxTimeout)
+        /*
+        if (cnt==100 || cnt==0)
         {
-            timeout=true;
+            RF24NetworkHeader header;
+            header.to_node = 00;
+            header.type = 90;
+
+            string msg = string("netpayload") + to_string(cnt);
+            network4.write(header,msg.c_str(), msg.size()+1);
+        }
+
+
+        if (cnt==200)
+        {
+            fflush(stdout);
+            break;
+        }
+
+        cnt++;
+
+        network4.update();
+        network3.update();
+        network2.update();
+        network1.update();
+        network0.update();
+
+        if (network0.available())
+        {
+            char buffer[20];
+            RF24NetworkHeader hdr;
+            network0.read(hdr, buffer, sizeof(buffer));
+            printf("from %o buffer=%s\n", hdr.from_node, buffer);
+        }
+
+        if (network1.available())
+        {
+            char buffer[20];
+            RF24NetworkHeader hdr;
+            network1.read(hdr, buffer, sizeof(buffer));
+            printf("from %o buffer=%s\n", hdr.from_node, buffer);
+        }
+
+        if (network2.available())
+        {
+            char buffer[20];
+            RF24NetworkHeader hdr;
+            network2.read(hdr, buffer, sizeof(buffer));
+            printf("from %o buffer=%s\n", hdr.from_node, buffer);
+        }
+
+        if (network4.available())
+        {
+            char buffer[20];
+            RF24NetworkHeader hdr;
+            network4.read(hdr, buffer, sizeof(buffer));
+            printf("from %o buffer=%s\n", hdr.from_node, buffer);
+        }
+         */
+
+
+
+        this_thread::sleep_for(seconds(1));
+        fflush(stdout);
+        if (cnt++ > 2)
+        {
+            node00.stop();
+            node01.stop();
+            node011.stop();
+            node0111.stop();
+            node01111.stop();
+            this_thread::sleep_for(seconds(1));
             break;
         }
     }
-    auto end = steady_clock::now();
-
-    cout << "duration=" << duration_cast<milliseconds>(end-start).count() << endl;
-
-    if (timeout)
-    {
-        printf("Timeout!");
-    }
-    else
-    {
-        char buffer[20];
-        RF24NetworkHeader hdr;
-        network2.read(hdr,buffer,sizeof(buffer));
-        printf("from %o buffer2=%s\n",hdr.from_node,buffer);
-    }
-
     return 0;
 }
 

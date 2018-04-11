@@ -165,8 +165,8 @@ void nRF24registers::write_register(byte* bytes_to_write)
 
     if (addr==eCONFIG)
     {
-        printf("%s old reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",LOGHDR, addr,BYTE_TO_BINARY(where_to_write[0]));
-        printf("%s new reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",LOGHDR, addr,BYTE_TO_BINARY(bytes_to_write[1]));
+        //printf("%s old reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",LOGHDR, addr,BYTE_TO_BINARY(where_to_write[0]));
+        //printf("%s new reg:0x%X " BYTE_TO_BINARY_PATTERN "\n",LOGHDR, addr,BYTE_TO_BINARY(bytes_to_write[1]));
         if ((where_to_write[0]&0b1)!=(bytes_to_write[1]&0b1))
         {
             // RX/TX mode change

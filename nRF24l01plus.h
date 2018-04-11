@@ -19,7 +19,7 @@ class Ether;
 
 class nRF24l01plus : public nRF24interface
 {
-    static const int ACK_TIMEOUT_FACTOR    = 50;
+    static const int ACK_TIMEOUT_FACTOR    = 2;
 
     protected:
         //States
@@ -63,7 +63,8 @@ class nRF24l01plus : public nRF24interface
         void runRF24();
         std::thread chip;
         std::condition_variable cmdAvailable;
-        std::mutex m;
+        std::mutex cmdPickup;
+        std::mutex shockburst;
 
     protected:
         static const int IDLE   = 0;

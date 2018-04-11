@@ -53,6 +53,8 @@ set(SOURCE_FILES
         MCUClock.h
         ThreadNames.cpp
         ThreadNames.h
+        MCUNetworkNode.cpp
+        MCUNetworkNode.h
         )
 add_executable(nRF_Simulator ${SOURCE_FILES})
 
