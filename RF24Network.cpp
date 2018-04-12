@@ -170,9 +170,11 @@ uint8_t RF24Network::update(void)
     while (radio.available(&pipe_num))
     {
 
-        if ((frame_size = radio.getDynamicPayloadSize())<sizeof(RF24NetworkHeader))
+        frame_size = radio.getDynamicPayloadSize();
+        if ((frame_size <sizeof(RF24NetworkHeader) || frame_size > 32))
         {
-            delay(10);
+            printf("%s invalid frame size=%d\n",radio.rf24->LOGHDR,frame_size);
+            radio.flush_rx();
             continue;
         }
 
@@ -224,6 +226,7 @@ uint8_t RF24Network::update(void)
                 header->from_node = node_address;
                 header->to_node = MASTER_NODE;
                 write(header->to_node, TX_NORMAL);
+                printf("%s after Fwd addr req to 0\n",radio.rf24->LOGHDR);
                 continue;
             }
 
@@ -291,6 +294,9 @@ uint8_t RF24Network::update(void)
         }
 
     }
+
+    if (returnVal) printf("%s update continue returnVal=%d\n",radio.rf24->LOGHDR,returnVal);
+
     return returnVal;
 }
 
@@ -500,6 +506,8 @@ bool RF24Network::write(RF24NetworkHeader& header, const void* message, uint16_t
 
 bool RF24Network::_write(RF24NetworkHeader& header, const void* message, uint16_t len, uint16_t writeDirect)
 {
+    printf("%s _write\n",radio.rf24->LOGHDR);
+
     // Fill out the header
     header.from_node = node_address;
 

@@ -64,14 +64,11 @@ class nRF24registers
         void setRX_EMPTY(){REGISTERS.sFIFO_STATUS.sRX_EMPTY = 1;}
         void setTX_FULL();
         void clearTX_FULL();
-        void setTX_FULL_IRQ(){REGISTERS.sSTATUS.sTX_FULL = 1;}
-        void clearTX_FULL_IRQ(){REGISTERS.sSTATUS.sTX_FULL = 0;}
         void setTX_EMPTY(){REGISTERS.sFIFO_STATUS.sTX_EMPTY = 1;}
         void clearTX_EMPTY(){REGISTERS.sFIFO_STATUS.sTX_EMPTY = 0;}
-        void setRX_DR_IRQ(){REGISTERS.sSTATUS.sRX_DR = 1;}
-        void clearRX_DR_IRQ(){REGISTERS.sSTATUS.sRX_DR = 0;}
-        void setMAX_RT_IRQ(){REGISTERS.sSTATUS.sMAX_RT =1;}
-        void setTX_DS_IRQ(){REGISTERS.sSTATUS.sTX_DS = 1;}
+        void setRX_DR(){REGISTERS.sSTATUS.sRX_DR = 1;}
+        void setMAX_RT(){REGISTERS.sSTATUS.sMAX_RT =1;}
+        void setTX_DS(){REGISTERS.sSTATUS.sTX_DS = 1;}
         void PLOS_CNT_INC();
         void clearPLOS_CNT(){REGISTERS.sOBSERVE_TX.sPLOS_CNT = 0;}
         void ARC_CNT_INC();

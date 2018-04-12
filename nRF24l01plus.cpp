@@ -214,7 +214,7 @@ void nRF24l01plus::startPTX()
         //no ack, last transmitted is the one that is
         removeTXPacket(packetToSend);
         standbyTransition();
-        setTX_DS_IRQ();
+        setTX_DS();
         notifyTX();
 
     }
@@ -360,7 +360,7 @@ void nRF24l01plus::ackReceived(shared_ptr<tMsgFrame> theMSG, byte pipe)
     clearAck();
     standbyTransition();
     theTimer->stop();
-    setTX_DS_IRQ();
+    setTX_DS();
     notifyTX();
 }
 
@@ -418,23 +418,24 @@ void nRF24l01plus::processNoAck()
     if (getARC_CNT()==getARC())
     {
         //number of max retransmits reached
-        //failed to reach targe set appropriate flags
+        //failed to reach target set appropriate flags
         PLOS_CNT_INC();
-        setMAX_RT_IRQ();
+        setMAX_RT();
         //Still in TX_FIFO
         //Will be sent on next TX unless TX_FLUSH is called
+        setTX_MODE();
         clearAck();
-        standbyTransition();
+        setRadioState(S_STANDBY_I);   // see p. 35
         notifyTX();
     }
     else        
     {
         //retransmit message and increase reTransCounter and start timer again
         setTX_MODE();
-        sendMsgToEther(TXpacket, false);
         setRX_MODE();
         //setup wait for ack...
         ARC_CNT_INC();
+        sendMsgToEther(TXpacket, false);
         startTimer(getARD() * ACK_TIMEOUT_FACTOR);//10ms real life 250us
     }
 }
@@ -455,7 +456,7 @@ void nRF24l01plus::startTimer(int time)
 void nRF24l01plus::runRF24()
 {
     printf("%s running\n", LOGHDR);
-    while (true)
+    while (running)
     {
         std::unique_lock<std::mutex> lock(cmdPickup);
         fflush(stdout);
@@ -463,6 +464,14 @@ void nRF24l01plus::runRF24()
         processCmd();
         lock.unlock();
     }
+    printf("%s rf24 stopped\n", LOGHDR);
+}
+
+void nRF24l01plus::stop()
+{
+    running = false;
+    pendingCmd = IDLE;
+    cmdAvailable.notify_one();
 }
 
 //These are to help threads emulate real world.
@@ -474,9 +483,13 @@ void nRF24l01plus::waitForTX(int timeout)
     printf("%s waitForTX timeout=%d mode=%s\n", LOGHDR, timeout, stateToString(radioState));
     if (S_TX_MODE)
     {
+        printf("%s waitForTX locking mutex timeout=%d mode=%s\n", LOGHDR, timeout, stateToString(radioState));
         std::unique_lock<std::mutex> lock(txMutex);
-        txdone.wait_for(lock, milliseconds(timeout));
-        lock.unlock();
+        auto status = txdone.wait_for(lock, milliseconds(timeout));
+        if (status == cv_status::no_timeout)
+        {
+            lock.unlock();
+        }
     }
 }
 

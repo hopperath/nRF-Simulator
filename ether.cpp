@@ -32,6 +32,13 @@ void Ether::enterEther(const void* pSender, tMsgFrame& msg, bool isAck)
         mutex.unlock();
 
         mMsg = msg;
+        leaveEther();
+        locked=false;
+        /*
+         * Timer too coarse, try using rf24 thread...
+         *
+         */
+        /*
         if (isAck)
         {
             startTimer(1);
@@ -40,6 +47,7 @@ void Ether::enterEther(const void* pSender, tMsgFrame& msg, bool isAck)
         {
             startTimer(1);
         }
+         */
     }
     else
     {

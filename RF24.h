@@ -71,7 +71,8 @@ class RF24
        MCUClock mcuClock;
        uint32_t millis();
 
-       int write_fast_timeout = 95;
+       int write_fast_timeout = 95;      //ms
+       int txstandby_retry_delay = 10;   //ms
 
     private:
     uint8_t ce_pin; /**< "Chip Enable" pin, activates the RX or TX role */
@@ -226,19 +227,7 @@ class RF24
      */
     uint8_t read_payload(void* buf, uint8_t len);
 
-    /**
-     * Empty the receive buffer
-     *
-     * @return Current value of status register
-     */
-    uint8_t flush_rx(void);
 
-    /**
-     * Empty the transmit buffer
-     *
-     * @return Current value of status register
-     */
-    uint8_t flush_tx(void);
 
     /**
      * Retrieve the current status of the chip
@@ -341,6 +330,20 @@ class RF24
      * Do this before calling write().
      */
     void stopListening(void);
+
+    /**
+     * Empty the receive buffer
+     *
+     * @return Current value of status register
+     */
+    uint8_t flush_rx(void);
+
+    /**
+     * Empty the transmit buffer
+     *
+     * @return Current value of status register
+     */
+    uint8_t flush_tx(void);
 
     /**
      * Write to the open writing pipe

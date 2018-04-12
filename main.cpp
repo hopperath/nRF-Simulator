@@ -18,9 +18,9 @@ using namespace std;
 using namespace chrono;
 
 const int startNodeID = 25;
-int totalNodes = 1;
+int totalNodes = 10;
 
-bool startMaster = false;
+bool startMaster = true;
 
 int main(int argc, char *argv[])
 {
@@ -43,11 +43,12 @@ int main(int argc, char *argv[])
         nodes.push_back(shared_ptr<MCUMeshNode>(new MCUMeshNode(startNodeID + i, ether)));
     }
 
+    int cnt=0;
     for (shared_ptr<MCUMeshNode> node: nodes)
     {
         node->start();
         this_thread::yield();
-        this_thread::sleep_for(chrono::seconds(1));
+        this_thread::sleep_for(chrono::seconds(1+cnt++));
     }
 
     /*
@@ -58,15 +59,19 @@ int main(int argc, char *argv[])
     sixth->start();
      */
 
-    nodes[totalNodes-1]->triggerTX(00);
 
-    int cnt = 0;
+    cnt = 0;
     while (true)
     {
         fflush(stdout);
         this_thread::sleep_for(chrono::seconds(1));
 
-        if (cnt++==10)
+        if (cnt == 30)
+        {
+            //nodes[totalNodes - 1]->triggerTX(00);
+        }
+
+        if (cnt++==60)
         {
             master.stop();
             for (int i = 0; i<totalNodes; i++)
@@ -74,6 +79,7 @@ int main(int argc, char *argv[])
                 nodes[i]->stop();
             }
             this_thread::sleep_for(chrono::seconds(1));
+            break;
         }
     }
 }

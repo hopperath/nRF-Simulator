@@ -19,7 +19,7 @@ class Ether;
 
 class nRF24l01plus : public nRF24interface
 {
-    static const int ACK_TIMEOUT_FACTOR    = 2;
+    static const int ACK_TIMEOUT_FACTOR    = 7;
 
     protected:
         //States
@@ -73,6 +73,7 @@ class nRF24l01plus : public nRF24interface
 
         int pendingCmd = IDLE;
 
+        bool running=true;
         void cmdNotify(int cmd);
         void processCmd();
         const char* cmdToString(int cmd);
@@ -81,6 +82,7 @@ class nRF24l01plus : public nRF24interface
 
     public:
         explicit nRF24l01plus(int id, Ether* someEther, MCUClock& clock);
+        void stop();
 
     protected:
         std::shared_ptr<tMsgFrame> rxMsg;

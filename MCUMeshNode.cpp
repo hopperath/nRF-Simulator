@@ -51,6 +51,10 @@ void MCUMeshNode::loop()
 
         while (network->available())
         {
+            char buffer[32];
+            RF24NetworkHeader hdr;
+            network->read(hdr,buffer,sizeof(buffer));
+            printf("%s RCV FROM %o buffer=%s\n",radio->rf24->LOGHDR, hdr.from_node,buffer);
         }
         if (tx)
         {
@@ -66,13 +70,14 @@ void MCUMeshNode::loop()
         this_thread::yield();
         this_thread::sleep_for(chrono::milliseconds(2));
     }
+    radio->rf24->stop();
     printf("%s mcu stopped\n",radio->rf24->LOGHDR);
 }
 
 void MCUMeshNode::setup()
 {
     radio = unique_ptr<RF24>(new RF24(9,10,new nRF24l01plus(nodeID,ether.get(),clock),clock));
-    network = unique_ptr<RF24Network>(new RF24Network(*radio,300,clock));
+    network = unique_ptr<RF24Network>(new RF24Network(*radio,650,clock));
     mesh = unique_ptr<RF24MeshNode>(new RF24MeshNode(*radio,*network,clock));
     mesh->setNodeID(nodeID);
     mesh->mesh_ping_delay = 150;

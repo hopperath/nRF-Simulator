@@ -1068,11 +1068,13 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
     uint32_t start = millis();
 
     //TODO: SIM ONLY
-    //This exits when the ack is received
+    //This exits when the ack is received or tx is done
     rf24->waitForTX(timeout);
 
     while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))
     {
+        //printf("%s txStandby FIFO: " BYTE_TO_BINARY_PATTERN "\n", rf24->LOGHDR, BYTE_TO_BINARY(read_register(FIFO_STATUS)));
+
         if (millis() - start>=timeout)
         {
             printf("%s txStandby timeout waited for %u\n",rf24->LOGHDR,timeout);
@@ -1081,12 +1083,19 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
             return 0;
         }
 
+        //printf("%s txStandby STATUS: " BYTE_TO_BINARY_PATTERN "\n", rf24->LOGHDR, BYTE_TO_BINARY(get_status()));
         if (get_status()&_BV(MAX_RT))
         {
+
+            printf("%s txStandby clearing MAX_RT signaling retransmit\n", rf24->LOGHDR);
+            usleep(1000*txstandby_retry_delay);
             //Set re-transmit
             write_register(STATUS, _BV(MAX_RT));
             ce(LOW);
+            usleep(10);
             ce(HIGH);
+
+            rf24->waitForTX(timeout - (millis() - start));
         }
 
         YIELDAT(200);

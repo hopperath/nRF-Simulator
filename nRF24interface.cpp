@@ -123,6 +123,8 @@ byte nRF24interface::Spi_Write(byte* msg, int spiMsgLen, byte* dataBack, int dat
             write_no_ack_payload(msg + 1, spiMsgLen);
             break;
         case eNOP:
+            //printf("%s STATUS: " BYTE_TO_BINARY_PATTERN "\n",LOGHDR,BYTE_TO_BINARY(status));
+            break;
         default:
             break;
     }
@@ -187,7 +189,7 @@ void nRF24interface::removeTXPacket(shared_ptr<tMsgFrame> msgFrame)
             //remove full flag
             if (sizeOfTXfifo==3)
             {
-                clearTX_FULL_IRQ();
+                clearTX_FULL_STATUS();
                 clearTX_FULL();
             }
             //if tx fifo only had one size = 1
@@ -216,7 +218,6 @@ void nRF24interface::removeTXPacket(shared_ptr<tMsgFrame> msgFrame)
 
     if (TX_FIFO.size()<3 && sizeOfTXfifo==3)
     {
-        clearTX_FULL_IRQ();
         clearTX_FULL();
     }
 }
@@ -311,7 +312,6 @@ void nRF24interface::newFrame(uint64_t Address, uint8_t PayLength, uint8_t pid, 
     if (TX_FIFO.size()==3)
     {
         setTX_FULL();
-        setTX_FULL_IRQ();
     }
     //Not an ACK payload
     if (theFrame->Address==0)
@@ -396,7 +396,6 @@ void nRF24interface::flush_tx()
         }
         clearTX_FULL();
         setTX_EMPTY();
-        clearTX_FULL_IRQ();
     }
 }
 
@@ -463,7 +462,7 @@ bool nRF24interface::receive_frame(shared_ptr<tMsgFrame> theFrame, byte pipe)
         setRX_FULL();
     }
 
-    setRX_DR_IRQ();//issue irq...
+    setRX_DR();//issue irq...
     clearRX_EMPTY();
 
     return true;
