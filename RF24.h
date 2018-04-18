@@ -71,6 +71,7 @@ class RF24
        MCUClock mcuClock;
        uint32_t millis();
 
+       int write_timeout = 95;           //ms
        int write_fast_timeout = 95;      //ms
        int txstandby_retry_delay = 10;   //ms
 

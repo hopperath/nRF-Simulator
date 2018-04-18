@@ -513,7 +513,7 @@ bool RF24::write(const void* buf, uint8_t len,bool multicast)
 
         while (!(get_status()&(_BV(TX_DS)|_BV(MAX_RT))))
         {
-            if(millis() - timer > 95)
+            if(millis() - timer > write_timeout)
             {
                 return false;
             }
@@ -895,21 +895,13 @@ bool RF24::writeBlocking(const void* buf, uint8_t len, uint32_t timeout)
         if (get_status()&_BV(MAX_RT))
         {                      //If MAX Retries have been reached
             reUseTX();                                          //Set re-transmit and clear the MAX_RT interrupt flag
-            if (millis() - timer>timeout)
-            {
-                return 0;
-            }          //If this payload has exceeded the user-defined timeout, exit and return 0
+        //If this payload has exceeded the user-defined timeout, exit and return 0
         }
-#if defined (FAILURE_HANDLING) || defined (RF24_LINUX)
-        if(millis() - timer > (timeout+95) )
-        {
-            errNotify();
-   #if defined (FAILURE_HANDLING)
-            return 0;
-   #endif
-        }
-#endif
 
+        if (millis() - timer>timeout)
+        {
+            return 0;
+        }
     }
 
     //Start Writing
@@ -1069,6 +1061,7 @@ bool RF24::txStandBy(uint32_t timeout, bool startTx)
 
     //TODO: SIM ONLY
     //This exits when the ack is received or tx is done
+    RF24WAITFORTX(timeout);
     rf24->waitForTX(timeout);
 
     while (!(read_register(FIFO_STATUS)&_BV(TX_EMPTY)))

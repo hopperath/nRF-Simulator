@@ -22,6 +22,7 @@
 #define pgm_read_byte(p) (*(p))
 #define YIELD() (std::this_thread::yield())
 #define YIELDAT(x) if (yield++==(x)) { YIELD(); yield=0; }
+#define RF24WAITFORTX(x) rf24->waitForTX((x));
 
 #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BINARY(byte)  \

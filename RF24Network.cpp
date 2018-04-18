@@ -91,7 +91,7 @@ void RF24Network::begin(uint8_t _channel, uint16_t _node_address, uint16_t _txTi
     uint8_t retryVar = (((node_address % 6) + 1) * 2) + 3;
     radio.setRetries(retryVar, 5); // max about 85ms per attempt
     txTimeout = _txTimeout;
-    routeTimeout = addressToLevel(node_address) * txTimeout; // Adjust for max delay per node within a single chain
+    routeTimeout = 4 * txTimeout; // Adjust for max delay per node within a single chain
 
     printf("%s: txTimeout=%u routeTimeout=%u\n", radio.rf24->LOGHDR, txTimeout, routeTimeout);
 
